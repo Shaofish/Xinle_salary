@@ -1,0 +1,140 @@
+/* --- 專業商用與長輩友善樣式表 --- */
+:root {
+    --primary-color: #1a365d;    /* 深專業藍 */
+    --secondary-color: #2d3748;  /* 石墨灰 */
+    --accent-color: #2b6cb0;     /* 亮藍點綴 */
+    --success-color: #2f855a;
+    --danger-color: #c53030;
+    --warning-color: #b7791f;
+    --background-color: #f7fafc;
+    --container-bg: #ffffff;
+    --text-main: #1a202c;
+    --text-muted: #4a5568;
+    
+    /* 長輩友善字體設定 */
+    --font-size-base: 20px;      /* 預設字體加大 */
+    --font-size-lg: 24px;
+    --font-size-xl: 32px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "Microsoft JhengHei", "微軟正黑體", -apple-system, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-main);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+}
+
+/* --- 專業頭部與導覽 --- */
+header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #2c5282 100%);
+    color: white;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+header h1 a {
+    color: #fff;
+    font-size: var(--font-size-xl);
+    text-decoration: none;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+/* --- 主容器卡片化 --- */
+main {
+    padding: 2.5rem;
+    max-width: 1300px;
+    margin: 40px auto;
+    background-color: var(--container-bg);
+    border-radius: 20px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* --- 標題美化 --- */
+h1, h2 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+    font-size: var(--font-size-lg);
+    border-left: 8px solid var(--accent-color);
+    padding-left: 15px;
+}
+
+/* --- 專業按鈕 (加大且具備點擊感) --- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 28px;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    filter: brightness(1.1);
+}
+
+.btn-secondary { background-color: #718096; color: white; }
+.btn-primary { background-color: var(--accent-color); color: white; }
+.btn-warning { background-color: var(--warning-color); color: white; }
+.btn-danger { background-color: var(--danger-color); color: white; }
+
+/* --- 表格優化 (商用報表感) --- */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 20px 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+th {
+    background-color: #edf2f7;
+    color: var(--primary-color);
+    font-weight: 800;
+    font-size: 22px;
+    padding: 20px;
+    border-bottom: 2px solid #cbd5e0;
+}
+
+td {
+    padding: 18px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 20px;
+}
+
+tr:last-child td { border-bottom: none; }
+tr:hover { background-color: #f1f5f9; }
+
+/* --- 表單輸入加大 --- */
+input, select, textarea {
+    width: 100%;
+    padding: 15px;
+    font-size: 20px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    transition: border-color 0.2s;
+}
+
+input:focus {
+    border-color: var(--accent-color);
+    outline: none;
+    background-color: #fff;
+}
