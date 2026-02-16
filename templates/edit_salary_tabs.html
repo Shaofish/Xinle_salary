@@ -99,6 +99,7 @@
             ('holiday_work_hr','假日總時數','16'),
             ('transition_hr','轉場總時數','5'),
             ('transition_allowance','轉場總津貼','1000'),
+            ('Inter_district_subsidie','跨區補貼','金額'),
             ('Overtime_pay_weekdays910hr','平日加班(9-10)','時數'),
             ('Overtime_pay_weekdays1112hr','平日加班(11-12)','時數'),
             ('total_overtime_pay_weekdays','平日總加班費','金額'),
@@ -109,7 +110,6 @@
             ('total_pay_holidays','例假日加班費','金額'),
             ('National_holidays_hr','國定假日時數','時數'),
             ('total_pay_national_holidays','國定假日加班費','金額'),
-            ('Inter_district_subsidie','跨區補貼','金額'),
             ('duty_allowance','職務/行政津貼','金額')
           ] %}
           <div class="col-md-4 field-group">
@@ -305,11 +305,28 @@
     }
 
     window.onload = async function() {
-      await loadLaborInsuranceLevels();
-      await loadHealthInsuranceLevels();
-      attachCheckupAutoFill();
-      calculateTotalHours();
+        await loadLaborInsuranceLevels();
+        await loadHealthInsuranceLevels();
+        attachCheckupAutoFill();
+        calculateTotalHours();
+        // ✨ 新增：頁面載入時，強制執行一次拆帳計算
+        calculateSplit(); 
+
+        // ✨ 新增：因為拆帳金額變了，績效獎金也要重算 (確保 calcPerformanceBonus 已定義)
+        if (window.calcPerformanceBonus) {
+            window.calcPerformanceBonus();
+        }
     };
+    // --- 獨立出來的拆帳計算函式 ---
+    function calculateSplit() {
+        const cap = document.getElementById("capacity_amount");
+        const spl = document.getElementById("split_amount");
+        if (cap && spl) {
+            // 如果產能金額有值，就計算 60%；如果是空的就歸零
+            const capVal = safeFloat("capacity_amount");
+            spl.value = Math.round(capVal * 0.6);
+        }
+    }
 
     // --- 勞保級距邏輯 (保持原有功能) ---
     async function loadLaborInsuranceLevels() {
@@ -422,11 +439,10 @@
     document.addEventListener("DOMContentLoaded", function() {
       const cap = document.getElementById("capacity_amount");
       const spl = document.getElementById("split_amount");
-      cap.addEventListener("input", () => {
-        const calculatedValue = Math.round(cap.value * 0.6);
-        spl.value = calculatedValue; // 自動更新，但因為欄位沒鎖，使用者之後可以改
-        window.calcPerformanceBonus();
-    });
+        cap.addEventListener("input", () => {
+            calculateSplit(); // 呼叫共用函式
+            window.calcPerformanceBonus();
+        });
     spl.addEventListener("input", () => {
         window.calcPerformanceBonus();
     });
@@ -457,6 +473,13 @@
       ["leave_days","leave_taken_days","annual_total_hours","total_service_hours"].forEach(id => document.getElementById(id).addEventListener("input", recalcLeave));
     });
 
+    function safeFloat(selector) {
+        let el = document.getElementById(selector) || document.querySelector(`input[name='${selector}']`);
+        if (!el) return 0;
+        let val = parseFloat(el.value);
+        return isNaN(val) ? 0 : val; // 如果是 NaN 就回傳 0
+    }   
+    
     function validateForm() { return true; }
   </script>
 {% endblock %}
