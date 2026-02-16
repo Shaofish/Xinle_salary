@@ -19,7 +19,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '410770167'
+app.config['MYSQL_PASSWORD'] = '410770357=='
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -137,6 +137,19 @@ def calculate_leave_days(onboard_date_input, selected_dt):
     else:
         return 0
     
+def safe_int(value):
+    try:
+        if not value: return 0  # 處理 None 或 空字串
+        return int(float(value)) # 先轉 float 再轉 int，避免 "100.0" 轉 int 報錯
+    except (ValueError, TypeError):
+        return 0
+
+def safe_float(value):
+    try:
+        if not value: return 0.0
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
     
 # ====== 欄位名稱中英對照（可自行增減）======
 column_mapping = {
@@ -358,34 +371,56 @@ def add_employee():
 @login_required
 def edit_profile(employee_id):
     import MySQLdb.cursors
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
+    
+    # 建立 DB 連線
+    # 建議：放在 try block 外部或確保連線存在
+    
     if request.method == 'POST':
-        # 接收新的員工編號
-        new_employee_id = request.form['employee_id']
-        employee_name = request.form['employee_name']
-        employee_birth = request.form['employee_birth']
-        employee_card = request.form['employee_card']
-        employee_onboard = request.form['employee_onboard']
-        labor_grade = request.form.get('labor_insurance_grade', 0)
-        health_grade = request.form.get('health_insurance_grade', 0)
+        # 1. 安全接收資料 (使用 .get 避免 KeyError)
+        new_employee_id = request.form.get('employee_id')
+        employee_name = request.form.get('employee_name')
+        employee_birth = request.form.get('employee_birth')
+        employee_card = request.form.get('employee_card')
+        employee_onboard = request.form.get('employee_onboard')
         
-        qualification = int(request.form.get('qualification', 0))
-        subsidy = int(request.form.get('subsidy', 0))
-        subsidy_none = int(request.form.get('subsidy_none', 0))
-        subsidy_half = int(request.form.get('subsidy_half', 0))
-        subsidy_full = int(request.form.get('subsidy_full', 0))
-        leave_payment_month_of_year = request.form.get('leave_payment_month_of_year', None)
+        # 處理數值 (防止空字串導致 int() 轉換失敗)
+        def safe_int(val):
+            return int(val) if val and val.strip() else 0
 
-        # 取得原始資料用於 Log
-        cursor.execute("SELECT * FROM employee_info WHERE employee_id = %s", (employee_id,))
-        original = cursor.fetchone()
+        labor_grade = request.form.get('labor_insurance_grade') # 這裡不轉 int，因為可能是字串或特定格式
+        health_grade = request.form.get('health_insurance_grade')
+        
+        qualification = safe_int(request.form.get('qualification'))
+        subsidy = safe_int(request.form.get('subsidy'))
+        subsidy_none = safe_int(request.form.get('subsidy_none'))
+        subsidy_half = safe_int(request.form.get('subsidy_half'))
+        subsidy_full = safe_int(request.form.get('subsidy_full'))
+        
+        leave_payment_month_of_year = request.form.get('leave_payment_month_of_year')
 
+        # 使用 with 語法自動管理 cursor 關閉
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
-            # ✨ 關鍵：如果 ID 改變了，先關閉外鍵檢查以便批次更新 (視資料庫設定)
-            # 這裡採用標準 SQL 更新方式
+            # 2. 檢查新 ID 是否與其他現有員工重複 (排除自己)
+            if new_employee_id != employee_id:
+                cursor.execute("SELECT employee_id FROM employee_info WHERE employee_id = %s", (new_employee_id,))
+                if cursor.fetchone():
+                    flash(f'錯誤：員工編號 {new_employee_id} 已存在，請使用其他編號。', 'danger')
+                    return redirect(url_for('edit_profile', employee_id=employee_id))
+
+            # 3. 取得原始資料用於 Log (使用原本的 ID)
+            cursor.execute("SELECT * FROM employee_info WHERE employee_id = %s", (employee_id,))
+            original = cursor.fetchone()
             
-            # 1. 更新主表
+            if not original:
+                flash('錯誤：找不到原始員工資料', 'danger')
+                return redirect(url_for('employee_manage'))
+
+            # 4. 開始修改資料 (包含主鍵修改的特殊處理)
+            # 暫時關閉外鍵檢查，允許修改 Parent Table 的 ID
+            cursor.execute("SET FOREIGN_KEY_CHECKS=0")
+
+            # Update 主表
             cursor.execute("""
                 UPDATE `employee_info`
                 SET `employee_id` = %s, `employee_name` = %s, `employee_birth` = %s, `employee_card` = %s, 
@@ -398,44 +433,79 @@ def edit_profile(employee_id):
                   employee_onboard, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full, 
                   leave_payment_month_of_year, labor_grade, health_grade, employee_id))
 
-            # 2. 如果你的資料庫沒有設定 ON UPDATE CASCADE，則需手動更新關聯表
-            cursor.execute("UPDATE `employee_salary` SET `employee_id` = %s WHERE `employee_id` = %s", (new_employee_id, employee_id))
-            cursor.execute("UPDATE `edit_log` SET `employee_id` = %s WHERE `employee_id` = %s", (new_employee_id, employee_id))
+            # Update 關聯表 (手動 Cascade)
+            # 注意：這裡的 WHERE 條件必須用 `employee_id` (舊 ID)，但因為我們關閉了外鍵檢查，且第一步已經改了主表，
+            # 這裡其實有點風險。比較穩健的做法是：如果 ID 有變，才執行這些。
+            
+            if new_employee_id != employee_id:
+                # 更新其他關聯表
+                cursor.execute("UPDATE `employee_salary` SET `employee_id` = %s WHERE `employee_id` = %s", (new_employee_id, employee_id))
+                cursor.execute("UPDATE `edit_log` SET `employee_id` = %s WHERE `employee_id` = %s", (new_employee_id, employee_id))
+                # 可以在此加入其他關聯表
 
+            # 恢復外鍵檢查
+            cursor.execute("SET FOREIGN_KEY_CHECKS=1")
+            
+            # 提交交易
             mysql.connection.commit()
 
-            # Log 比對 (包含 ID 變動)
+            # 5. Log 紀錄
             changed = {}
             compare_fields = {
                 'employee_id': new_employee_id, 'employee_name': employee_name, 
                 'employee_birth': employee_birth, 'employee_card': employee_card
             }
+            
+            # 特別處理：比對 ID 時，原始資料要拿 'employee_id'，新資料是 new_employee_id
+            if original['employee_id'] != new_employee_id:
+                 changed['employee_id'] = {"old": original['employee_id'], "new": new_employee_id}
+
             for field, new_value in compare_fields.items():
+                if field == 'employee_id': continue # 已經處理過
                 old_value = original.get(field)
-                if str(old_value) != str(new_value):
+                # 轉成字串比對比較保險，避免 None vs '' 或 int vs str 的問題
+                if str(old_value if old_value is not None else '') != str(new_value if new_value is not None else ''):
                     changed[field] = {"old": old_value, "new": new_value}
 
             if changed:
-                # 注意：這裡紀錄時使用 new_employee_id
-                log_edit(session['userid'], new_employee_id, 'edit_employee', changed)
+                # 確保 log_edit 函式存在且參數正確
+                try:
+                    log_edit(session.get('userid'), new_employee_id, 'edit_employee', changed)
+                except Exception as e:
+                    print(f"Log 寫入失敗: {e}") # 避免 Log 錯誤導致整個流程看起來像失敗
 
-            flash('員工資料（含編號）已成功更新', 'success')
+            flash('員工資料已成功更新', 'success')
             return redirect(url_for('employee_manage'))
 
-        except IntegrityError:
+        except Exception as e:
             mysql.connection.rollback()
-            flash('錯誤：新的員工編號已存在，請使用其他編號。', 'danger')
+            # 將錯誤印在 Console 方便除錯
+            print(f"Update Error: {e}")
+            flash(f'更新失敗: {str(e)}', 'danger')
             return redirect(url_for('edit_profile', employee_id=employee_id))
+        
+        finally:
+            cursor.close()
 
-    # GET 部分保持不變...
-    cursor.execute("SELECT * FROM labor_insurance_level ORDER BY `range` ASC")
-    labor_levels = cursor.fetchall()
-    cursor.execute("SELECT * FROM health_insurance_level ORDER BY `Range` ASC")
-    health_levels = cursor.fetchall()
-    cursor.execute("SELECT * FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
-    employee = cursor.fetchone()
-    cursor.close()
-    return render_template('edit_profile.html', employee=employee, labor_levels=labor_levels, health_levels=health_levels)
+    # --- GET request 處理 ---
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT * FROM labor_insurance_level ORDER BY `range` ASC")
+        labor_levels = cursor.fetchall()
+        
+        cursor.execute("SELECT * FROM health_insurance_level ORDER BY `Range` ASC")
+        health_levels = cursor.fetchall()
+        
+        cursor.execute("SELECT * FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
+        employee = cursor.fetchone()
+
+        if not employee:
+            flash('找不到該員工資料', 'danger')
+            return redirect(url_for('employee_manage'))
+
+        return render_template('edit_profile.html', employee=employee, labor_levels=labor_levels, health_levels=health_levels)
+    finally:
+        cursor.close()
 
 # ====== 修改 edit_salary_tabs 預設級距邏輯 ======
 # 在原本的 GET 區塊尋找 if not salary 處修改：
@@ -537,7 +607,7 @@ def edit_salary_tabs(employee_id):
     # 分頁欄位（新增 leave_payment_month）
     fields_by_tab = {
         'salary': [
-            'capacity_amout', 'split_amount', 'AA09_bonus_view', 'daily_work_hr', 'holiday_work_hr', 'transition_hr', 
+            'capacity_amout', 'Split_amount', 'AA09_bonus_view', 'daily_work_hr', 'holiday_work_hr', 'transition_hr', 
             'transition_allowance', 'Overtime_pay_rest_days12hr', 'Overtime_pay_rest_days38hr', 'total_overtime_pay_restdays',
             'Overtime_pay_weekdays910hr', 'Overtime_pay_weekdays1112hr', 'Overtime_pay_weekdays910', 'Overtime_pay_weekdays1112',
             'total_overtime_pay_weekdays', 'Performance_bonuses', 'Overtime_pay_rest_days12', 'Overtime_pay_rest_days38',
@@ -611,19 +681,33 @@ def edit_salary_tabs(employee_id):
             info['employee_onboard'], info['employee_birth'], year_month
         )
 
-        # 收集表單輸入
-        values_dict = {field: request.form.get(field, '0') for field in all_fields}
-        values_dict['birthday_bonus'] = birthday_bonus
+        # 收集表單資料 (使用 safe_int/float 防止報錯)
+        values_dict = {}
         
-        # ✨ 處理特休發放月份（可能為空）
-        leave_payment_month_input = request.form.get('leave_payment_month', '')
-        if leave_payment_month_input and leave_payment_month_input.strip():
-            try:
-                values_dict['leave_payment_month'] = int(leave_payment_month_input)
-            except ValueError:
-                values_dict['leave_payment_month'] = None
-        else:
-            values_dict['leave_payment_month'] = None
+        for field in all_fields:
+            val = request.form.get(field)
+            
+            # 特殊欄位處理
+            if field == 'birthday_bonus':
+                values_dict[field] = birthday_bonus # 這是後端算的，直接用
+            
+            elif field == 'leave_payment_month':
+                # 特休發放月：如果是空值，存成 None (NULL)，否則存 int
+                if val and val.strip():
+                    values_dict[field] = safe_int(val)
+                else:
+                    values_dict[field] = None
+            
+            elif field in ['additional_withholding_items']: # 文字欄位直接存
+                 values_dict[field] = val if val else ''
+            
+            else: # 其他預設都是數值欄位
+                # 判斷是否為浮點數欄位 (例如工時、獎金、金額)
+                if 'hr' in field or 'bonus' in field or 'amount' in field or 'amout' in field:
+                     values_dict[field] = safe_float(val)
+                else:
+                     values_dict[field] = safe_int(val)
+
         
         # 將績效獎金改為非負
         try:
@@ -1402,7 +1486,83 @@ def health_insurance_level_manage():
     levels = cursor.fetchall()
     cursor.close()
     return render_template('health_insurance_level_manage.html', levels=levels)
+
+# ==========薪資異動紀錄路由 (只看薪資相關)============
+@app.route('/edit_log_salary/<employee_id>')
+@login_required
+def edit_log_salary(employee_id):
+    cursor = mysql.connection.cursor()
     
+    # 抓取員工基本資料 (顯示在標題用)
+    cursor.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    emp = cursor.fetchone()
+    employee_name = emp['employee_name'] if emp else "未知員工"
+
+    # 抓取 Log，但只篩選「薪資相關」的動作
+    # 假設你的 action_type 是 'edit_salary', 'add_salary'
+    cursor.execute("""
+        SELECT * FROM edit_log 
+        WHERE employee_id = %s 
+        AND action_type IN ('edit_salary', 'add_salary')
+        ORDER BY timestamp DESC
+    """, (employee_id,))
+    logs = cursor.fetchall()
+    
+    # 將變更欄位 JSON 字串轉換為字典
+    for log in logs:
+        # 轉換變更欄位為 dict
+        original_fields = json.loads(log['changed_fields'])
+
+        # 將欄位名稱轉換為中文
+        translated_fields = {}
+        for key, value in original_fields.items():
+            chinese_key = column_mapping.get(key, key)
+            translated_fields[chinese_key] = value
+
+        log['changed_fields'] = translated_fields
+        log['action_type'] = action_mapping.get(log['action_type'], log['action_type'])
+    
+
+    cursor.close()
+    return render_template('edit_log_salary.html', logs=logs, employee_id=employee_id, employee_name=employee_name)
+
+# =============個人資料異動紀錄路由 (排除薪資相關)================
+@app.route('/edit_log_profile/<employee_id>')
+@login_required
+def edit_log_profile(employee_id):
+    cursor = mysql.connection.cursor()
+    
+    cursor.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    emp = cursor.fetchone()
+    employee_name = emp['employee_name'] if emp else "未知員工"
+
+    # 抓取 Log，篩選「非薪資」的動作 (個資修改、離職、復職)
+    # 假設 action_type 包含 'edit_employee', 'resign', 'reinstate'
+    cursor.execute("""
+        SELECT * FROM edit_log 
+        WHERE employee_id = %s 
+        AND action_type NOT IN ('edit_salary', 'add_salary')
+        ORDER BY timestamp DESC
+    """, (employee_id,))
+    logs = cursor.fetchall()
+    
+    # 將變更欄位 JSON 字串轉換為字典
+    for log in logs:
+        # 轉換變更欄位為 dict
+        original_fields = json.loads(log['changed_fields'])
+
+        # 將欄位名稱轉換為中文
+        translated_fields = {}
+        for key, value in original_fields.items():
+            chinese_key = column_mapping.get(key, key)
+            translated_fields[chinese_key] = value
+
+        log['changed_fields'] = translated_fields
+        log['action_type'] = action_mapping.get(log['action_type'], log['action_type'])
+
+    cursor.close()
+    return render_template('edit_log_profile.html', logs=logs, employee_id=employee_id, employee_name=employee_name)
+
 # ====== 編輯紀錄 =======
 @app.route('/edit_log/<employee_id>')
 @login_required
