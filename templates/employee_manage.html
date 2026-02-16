@@ -146,11 +146,7 @@
                                 <button type="submit" class="btn btn-sm-custom" style="background: #ff6600; color: white;" 
                                         onclick="return confirm('⚠️ 確定要將【{{ e.employee_name }}】標記為離職嗎？')">離職</button>
                             </form>
-
-                            <form method="POST" action="{{ url_for('hide_employee', employee_id=e.employee_id) }}" style="display: inline;">
-                                <button type="submit" class="btn btn-sm-custom" style="background: #c53030; color: white;" 
-                                        onclick="return confirm('❌ 警告：刪除後無法復原！確定刪除此員工嗎？')">刪除</button>
-                            </form>
+                            <a href="{{ url_for('edit_log_profile', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
                         </div>
                     </td>
                 </tr>

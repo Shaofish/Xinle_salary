@@ -1563,40 +1563,7 @@ def edit_log_profile(employee_id):
     cursor.close()
     return render_template('edit_log_profile.html', logs=logs, employee_id=employee_id, employee_name=employee_name)
 
-# ====== 編輯紀錄 =======
-@app.route('/edit_log/<employee_id>')
-@login_required
-def edit_log_for_employee(employee_id):
-    # 查詢編輯紀錄
-    cur1 = mysql.connection.cursor()
-    cur1.execute("SELECT * FROM edit_log WHERE employee_id = %s ORDER BY timestamp DESC", (employee_id,))
-    logs = cur1.fetchall()
-    cur1.close()
 
-    # 員工姓名
-    cur2 = mysql.connection.cursor()
-    cur2.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
-    info = cur2.fetchone()
-    cur2.close()
-
-    employee_name = info['employee_name'] if info else employee_id
-
-    # 將變更欄位 JSON 字串轉換為字典
-    for log in logs:
-        # 轉換變更欄位為 dict
-        original_fields = json.loads(log['changed_fields'])
-
-        # 將欄位名稱轉換為中文
-        translated_fields = {}
-        for key, value in original_fields.items():
-            chinese_key = column_mapping.get(key, key)
-            translated_fields[chinese_key] = value
-
-        log['changed_fields'] = translated_fields
-        log['action_type'] = action_mapping.get(log['action_type'], log['action_type'])
-
-
-    return render_template('edit_log.html', logs=logs, employee_id=employee_id, employee_name=employee_name)
 
 # 1. 顯示匯入頁面 (提供範本下載連結)
 @app.route('/import_history_select')

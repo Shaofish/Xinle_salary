@@ -94,6 +94,10 @@
     <form method="POST">
         <div class="row">
             <div class="col-md-6 mb-4">
+                <label class="form-label">員工編號 <span class="text-danger">*</span></label>
+                <input type="text" name="employee_id" class="form-control" value="{{ employee.employee_id }}" required readonly>
+            </div>
+            <div class="col-md-6 mb-4">
                 <label class="form-label">員工姓名 <span class="text-danger">*</span></label>
                 <input type="text" name="employee_name" class="form-control" value="{{ employee.employee_name }}" required>
             </div>

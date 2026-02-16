@@ -97,7 +97,7 @@
                         <a href="{{ url_for('edit_select_month', employee_id=e.employee_id, action='edit') }}" class="btn btn-sm-custom" style="background: #2b6cb0; color: white;">編輯</a>
                         <a href="{{ url_for('export_pdf_select', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #1a202c; color: white;">PDF</a>
                         <a href="{{ url_for('export_excel', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2c5282; color: white;">Excel</a>
-                        <a href="{{ url_for('edit_log_for_employee', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
+                        <a href="{{ url_for('edit_log_salary', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
                     </div>
                 </td>
             </tr>
@@ -129,7 +129,7 @@
                         <a href="{{ url_for('preview_salary', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2f855a; color: white;">預覽</a>
                         <a href="{{ url_for('export_pdf_select', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #1a202c; color: white;">PDF</a>
                         <a href="{{ url_for('export_excel', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2c5282; color: white;">Excel</a>
-                        <a href="{{ url_for('edit_log_for_employee', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
+                        <a href="{{ url_for('edit_log_salary', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
                     </div>
                 </td>
             </tr>

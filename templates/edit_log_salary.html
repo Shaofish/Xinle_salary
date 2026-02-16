@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* 紀錄卡片化設計 */
+    .log-card {
+        background: #fff;
+        border: 2px solid #2d3748;
+        border-radius: 15px;
+        margin-bottom: 25px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+    }
+    .log-card:hover { transform: translateX(5px); }
+
+    /* 標頭背景色：根據類型區分 */
+    .log-header {
+        padding: 15px 25px;
+        border-bottom: 2px solid #cbd5e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+    }
+
+    /* 🌟 特殊狀態樣式 */
+    .log-resign { border-color: #c53030 !important; } /* 離職：紅框 */
+    .log-resign .log-header { background: #fff5f5; color: #c53030; }
+    
+    .log-reinstate { border-color: #2f855a !important; } /* 復職：綠框 */
+    .log-reinstate .log-header { background: #f0fff4; color: #2f855a; }
+
+    .log-body { padding: 20px 25px; }
+
+    /* 變更內容列表 */
+    .change-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px dashed #e2e8f0;
+        font-size: 20px;
+    }
+    .change-item:last-child { border-bottom: none; }
+    
+    .field-label { min-width: 180px; font-weight: bold; color: #4a5568; }
+    .val-old { color: #718096; text-decoration: line-through; margin-right: 10px; }
+    .val-new { color: #2d3748; font-weight: bold; background: #ebf8ff; padding: 2px 8px; border-radius: 5px; }
+
+    .badge-status { font-size: 18px; padding: 5px 15px; border-radius: 8px; }
+</style>
+
+<h2 class="welcome-text"><i class="fa-solid fa-clock-rotate-left"></i> 員工異動歷史全紀錄</h2>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <div>
+            <h2 class="text-warning fw-bold"><i class="fa-solid fa-file-invoice-dollar me-2"></i>薪資異動歷史</h2>
+            <div class="fs-5 text-muted mt-2">
+                員工：<strong class="text-dark">{{ employee_name }}</strong> ({{ employee_id }})
+            </div>
+        </div>
+        <div>
+            <a href="{{ url_for('employee_list') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-left"></i> 返回列表
+            </a>
+        </div>
+    </div>
+
+    {% for log in logs %}
+    <div class="log-card">
+        <div class="log-header">
+            <div>
+                <span class="fw-bold text-dark"><i class="fa-solid fa-calendar-check me-2"></i>{{ log.timestamp }}</span>
+                <span class="ms-4 text-muted small">操作者：{{ log.userid }}</span>
+            </div>
+            <span class="badge bg-warning text-dark fs-6">
+                {% if log.action_type == 'add_salary' %}新增薪資單{% else %}編輯薪資{% endif %}
+            </span>
+        </div>
+        
+        <div class="log-body">
+            {% if log.changed_fields %}
+                {% for field, change in log.changed_fields.items() %}
+                <div class="change-item">
+                    <div class="field-label">
+                        <i class="fa-solid fa-coins me-2 text-warning"></i>{{ field }}
+                    </div>
+                    <div class="d-flex align-items-center flex-grow-1">
+                        {% if change.old %}
+                            <span class="val-old">${{ change.old }}</span>
+                            <i class="fa-solid fa-arrow-right text-muted mx-2"></i>
+                        {% endif %}
+                        <span class="val-new">${{ change.new }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted mb-0">無詳細變更內容</p>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+        <div class="text-center p-5 bg-light rounded shadow-sm">
+            <i class="fa-solid fa-hand-holding-dollar fa-4x text-secondary mb-3"></i>
+            <p class="fs-4 text-secondary">目前尚無薪資調整紀錄。</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
