@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}薪資計算系統{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* 針對長輩閱讀優化：加強選單可見度 */
+        .nav-bar {
+            background: #2d3748;
+            padding: 10px 0;
+            text-align: center;
+        }
+        .nav-bar a {
+            color: white;
+            margin: 0 20px;
+            font-size: 22px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .nav-bar a:hover { color: #63b3ed; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><a href="{{ url_for('user') }}"><i class="fa-solid fa-building-shield"></i> 薪資計算系統</a></h1>
+        <p style="font-size: 20px; opacity: 0.9; margin-top: 10px;">人力資源管理與財務結算平台</p>
+    </header>
+
+    <div class="nav-bar">
+        <a href="{{ url_for('user') }}"><i class="fa-solid fa-house"></i> 系統首頁</a>
+        <a href="{{ url_for('employee_list') }}"><i class="fa-solid fa-users-gears"></i> 薪資作業</a>
+        <a href="{{ url_for('employee_manage') }}"><i class="fa-solid fa-user-tie"></i> 員工管理</a>
+    </div>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }} shadow-sm">
+                        <i class="fa-solid fa-circle-info"></i> {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer style="padding: 30px; background: #1a202c; color: #a0aec0; text-align: center;">
+        <p>&copy; 2025 馨樂居家長照機構 薪資管理系統 | v2.0 專業版</p>
+    </footer>
+</body>
+</html>

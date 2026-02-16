@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - 專業版{% endblock %}
+
+{% block content %}
+<style>
+    /* 核心卡片容器：強化邊框與陰影 */
+    .select-card {
+        max-width: 650px;
+        margin: 50px auto;
+        background: #ffffff;
+        border-radius: 20px;
+        border: 3px solid #2d3748; /* 深色粗外框 */
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    /* 頂部標題區 */
+    .select-header {
+        background: #f8fafc;
+        padding: 35px;
+        text-align: center;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .select-header i {
+        font-size: 55px;
+        color: #2b6cb0;
+        margin-bottom: 15px;
+    }
+    .select-header h2 {
+        border: none;
+        padding: 0;
+        margin: 0;
+        font-size: 32px;
+        color: #1a365d;
+    }
+
+    /* 表單內容區 */
+    .select-body {
+        padding: 45px;
+    }
+
+    /* 標籤加大 */
+    .form-label {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 12px;
+        display: block;
+    }
+
+    /* ✨ 下拉選單強化：大字體與明顯外框 */
+    .form-select-lg {
+        height: 75px;
+        font-size: 28px !important;
+        font-weight: bold;
+        border: 3px solid #4a5568 !important; /* 深灰色邊框 */
+        border-radius: 12px;
+        background-color: #fdfdfd;
+        text-align: center;
+        margin-bottom: 30px;
+        transition: all 0.2s ease-in-out;
+    }
+    
+    /* 點擊時的焦點顏色 */
+    .form-select-lg:focus {
+        border-color: #2b6cb0 !important;
+        box-shadow: 0 0 0 6px rgba(43, 108, 176, 0.15) !important;
+        background-color: #ffffff;
+    }
+
+    /* 操作按鈕極大化 */
+    .btn-action {
+        width: 100%;
+        padding: 18px !important;
+        font-size: 26px !important;
+        font-weight: bold;
+        border-radius: 15px;
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        margin-top: 10px;
+    }
+
+    .info-text {
+        font-size: 18px;
+        color: #718096;
+        margin-top: 20px;
+        text-align: center;
+    }
+</style>
+
+<div class="select-card">
+    <div class="select-header">
+        <i class="fa-solid fa-calendar-check"></i>
+        <h2>{{ title }}</h2>
+        <div class="mt-3">
+            <span class="badge bg-secondary fs-5" style="padding: 10px 20px;">
+                員工：{{ employee_name }} ({{ employee_id }})
+            </span>
+        </div>
+    </div>
+
+    <div class="select-body">
+        <form method="POST">
+            <div class="mb-4">
+                <label for="year" class="form-label">第一步：選擇年份</label>
+                <select name="year" id="year" class="form-select form-select-lg" required>
+                    {% for y in years %}
+                        <option value="{{ y }}" {% if y == default_year %}selected{% endif %}>{{ y }} 年</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-5">
+                <label for="month" class="form-label">第二步：選擇月份</label>
+                <select name="month" id="month" class="form-select form-select-lg" required></select>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-action">
+                <i class="fa-solid fa-circle-check me-2"></i> 
+                {{ button_text }}
+            </button>
+        </form>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('employee_list') }}" class="btn btn-light text-muted fs-5">
+                <i class="fa-solid fa-circle-chevron-left me-1"></i> 取消並返回列表
+            </a>
+        </div>
+        
+        <p class="info-text">※ 系統將根據選定的年月產出對應薪資明細。</p>
+    </div>
+</div>
+
+<script>
+    const availableMonths = {{ available_months_by_year|tojson }};
+    const yearSelect = document.getElementById("year");
+    const monthSelect = document.getElementById("month");
+
+    function updateMonths() {
+        const selectedYear = yearSelect.value;
+        monthSelect.innerHTML = "";
+
+        if (selectedYear && availableMonths[selectedYear]) {
+            const months = availableMonths[selectedYear];
+            months.forEach(m => {
+                const option = document.createElement("option");
+                option.value = m;
+                // 長輩友善格式
+                option.textContent = m.toString().padStart(2, "0") + " 月";
+                
+                // 預設選中目前月份 (如果年份匹配的話)
+                const now = new Date();
+                if (parseInt(selectedYear) === now.getFullYear() && m === (now.getMonth() + 1)) {
+                    option.selected = true;
+                }
+                
+                monthSelect.appendChild(option);
+            });
+        }
+    }
+
+    // ✨ 確保頁面載入後立即執行
+    document.addEventListener('DOMContentLoaded', updateMonths);
+    yearSelect.addEventListener("change", updateMonths);
+</script>
+{% endblock %}

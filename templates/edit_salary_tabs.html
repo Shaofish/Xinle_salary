@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+
+{% block title %}整合薪資設定 - 專業版{% endblock %}
+
+{% block content %}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <style>
+    /* 全域文字加大 */
+    body { font-size: 20px; }
+    h2 { font-size: 32px; font-weight: bold; color: #1a365d; margin-bottom: 25px; }
+    h3 { font-size: 26px; font-weight: bold; color: #2b6cb0; border-bottom: 3px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; }
+
+    /* 分頁標籤美化 (長輩友善大按鈕) */
+    .tab-content { display: none; padding: 30px; background: #fff; border: 3px solid #2d3748; border-radius: 0 0 15px 15px; border-top: none; }
+    .tab-content.active { display: block; }
+    
+    .nav-tabs-custom { display: flex; gap: 5px; border-bottom: 3px solid #2d3748; }
+    .nav-link-custom { 
+        padding: 15px 25px; 
+        font-size: 22px; 
+        font-weight: bold; 
+        color: #4a5568; 
+        background: #edf2f7; 
+        border: 3px solid #2d3748; 
+        border-bottom: none; 
+        border-radius: 12px 12px 0 0; 
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .nav-link-custom.active { background: #fff; color: #1a365d; position: relative; bottom: -3px; }
+
+    /* 輸入框強化 */
+    .form-label { font-size: 22px; font-weight: bold; color: #2d3748; margin-top: 10px; }
+    .form-control, .form-select { 
+        font-size: 22px !important; 
+        padding: 12px !important; 
+        border: 2.5px solid #718096 !important; 
+        border-radius: 10px; 
+    }
+    .form-control:focus { border-color: #2b6cb0 !important; box-shadow: 0 0 0 5px rgba(43, 108, 176, 0.2) !important; }
+
+    /* 唯讀/自動計算欄位提示 */
+    .readonly-field { background-color: #f1f5f9 !important; border-style: dashed !important; color: #2d3748; font-weight: bold; cursor: not-allowed; }
+    .info-badge { font-size: 16px; background: #ebf8ff; color: #2b6cb0; padding: 4px 10px; border-radius: 5px; margin-left: 10px; border: 1px solid #bee3f8; }
+
+    /* 特休提醒動畫 */
+    .leave-reminder-box { 
+        background: #fff5f5; border: 3px solid #e53e3e; border-radius: 15px; padding: 20px; margin-bottom: 20px;
+        animation: border-pulse 2s infinite;
+    }
+    @keyframes border-pulse {
+        0% { border-color: #e53e3e; box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.4); }
+        70% { border-color: #feb2b2; box-shadow: 0 0 0 15px rgba(229, 62, 62, 0); }
+        100% { border-color: #e53e3e; box-shadow: 0 0 0 0 rgba(229, 62, 62, 0); }
+    }
+
+    /* 調整區塊間距 */
+    .field-group { margin-bottom: 20px; }
+    .btn-save { font-size: 28px !important; padding: 20px !important; border-radius: 15px; font-weight: bold; width: 100%; box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+  </style>
+
+  <h2><i class="fa-solid fa-calculator-combined"></i> 整合薪資設定</h2>
+  <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded border">
+      <div>
+          <span class="fw-bold">員工姓名：</span><span class="text-primary">{{ employee_name }}</span>
+          <span class="ms-4 fw-bold">薪資月份：</span><span class="badge bg-dark fs-5">{{ selected_month }}</span>
+      </div>
+      <a href="{{ url_for('employee_list') }}" class="btn btn-secondary btn-lg">← 返回列表</a>
+  </div>
+
+  <form method="POST" onsubmit="return validateForm()">
+    <input type="hidden" name="year_month" value="{{ selected_month }}">
+
+    <div class="nav-tabs-custom">
+      <div class="nav-link-custom active" onclick="showTab(this, 'salary')">1. 約定薪資結構</div>
+      <div class="nav-link-custom" onclick="showTab(this, 'other')">2. 特休與工時</div>
+      <div class="nav-link-custom" onclick="showTab(this, 'bonus')">3. 福利與津貼</div>
+      <div class="nav-link-custom" onclick="showTab(this, 'insurance')">4. 勞健保與代扣</div>
+    </div>
+
+    <div id="salary" class="tab-content active">
+      <h3><i class="fa-solid fa-money-bill-transfer"></i> 約定薪資與時數明細</h3>
+      <div class="row">
+          <div class="col-md-6 field-group">
+              <label class="form-label">產能金額：</label>
+              <input type="number" id="capacity_amount" name="capacity_amout" value="{{ salary.capacity_amout }}" class="form-control" placeholder="請輸入產能金額">
+          </div>
+          <div class="col-md-6 field-group">
+              <label class="form-label">拆帳金額 (60%)：<span class="info-badge">自動計算</span></label>
+              <input type="number" id="split_amount" name="split_amount" value="{{ salary.split_amount }}" class="form-control readonly-field" >
+          </div>
+      </div>
+
+      <div class="row">
+          {% for f,label,ph in [
+            ('AA09_bonus_view' , 'A碼獎金(原始)','例如：5000'),
+            ('daily_work_hr','平日總時數','160'),
+            ('holiday_work_hr','假日總時數','16'),
+            ('transition_hr','轉場總時數','5'),
+            ('transition_allowance','轉場總津貼','1000'),
+            ('Overtime_pay_weekdays910hr','平日加班(9-10)','時數'),
+            ('Overtime_pay_weekdays1112hr','平日加班(11-12)','時數'),
+            ('total_overtime_pay_weekdays','平日總加班費','金額'),
+            ('Overtime_pay_rest_days12hr','休息日(1-2)','時數'),
+            ('Overtime_pay_rest_days38hr','休息日(3-8)','時數'),
+            ('total_overtime_pay_restdays','休息日總加班費','金額'),
+            ('holiday_overtime_hr','例假日加班時數','時數'),
+            ('total_pay_holidays','例假日加班費','金額'),
+            ('National_holidays_hr','國定假日時數','時數'),
+            ('total_pay_national_holidays','國定假日加班費','金額'),
+            ('Inter_district_subsidie','跨區補貼','金額'),
+            ('duty_allowance','職務/行政津貼','金額')
+          ] %}
+          <div class="col-md-4 field-group">
+              <label class="form-label">{{label}}：</label>
+              <input id="{{f}}" name="{{f}}" value="{{salary[f]}}" placeholder="{{ph}}" class="form-control numeric-input">
+          </div>
+          {% endfor %}
+      </div>
+      
+      <div class="row mt-3 bg-light p-3 rounded border">
+          <div class="col-md-6">
+              <label class="form-label text-danger">最終績效獎金：<span class="info-badge">自動計算</span></label>
+              <input type="number" id="Performance_bonuses" name="Performance_bonuses" class="form-control readonly-field" readonly value="{{ salary.Performance_bonuses }}">
+          </div>
+          <div class="col-md-6">
+              <label class="form-label text-danger">最終A碼獎金：<span class="info-badge">自動計算</span></label>
+              <input type="number" name="AA09_bonus" id="AA09_bonus" class="form-control readonly-field" readonly value="{{ salary.AA09_bonus }}">
+          </div>
+      </div>
+    </div>
+
+    <div id="other" class="tab-content">
+      <h3><i class="fa-solid fa-calendar-day"></i> 特休給付計算</h3>
+      
+      {% if show_leave_reminder %}
+      <div class="leave-reminder-box">
+          <h4 class="text-danger fw-bold"><i class="fa-solid fa-bell"></i> 本月特休發放提醒！</h4>
+          <p class="mb-0 fs-5">本月為預設發放月份。計算基準月：{{ one_year_month }}，可核發特休：{{ paid_leave_days }} 天。</p>
+      </div>
+      {% endif %}
+
+      <div class="alert alert-primary mb-4" style="font-size: 20px;">
+          <strong><i class="fa-solid fa-circle-info"></i> 到職概況：</strong> 
+          滿一年日期為 {{ one_year_month }}，目前系統登記特休總天數為 {{ paid_leave_days }} 天。
+      </div>
+
+      <div class="row">
+          <div class="col-md-6 field-group">
+              <label class="form-label">應給特休總天數：</label>
+              <input type="number" id="leave_days" name="leave_days" value="{{ salary.leave_days }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
+          </div>
+          <div class="col-md-6 field-group">
+              <label class="form-label">已請特休天數：</label>
+              <input type="number" step="any" id="leave_taken_days" name="leave_taken_days" value="{{ salary.leave_taken_days }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
+          </div>
+          <div class="col-md-6 field-group">
+              <label class="form-label">年度總工時：</label>
+              <input type="number" step="any" id="annual_total_hours" name="annual_total_hours" value="{{ salary.annual_total_hours }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
+          </div>
+          <div class="col-md-6 field-group">
+              <label class="form-label">服務總時數：</label>
+              <input type="number" step="any" id="total_service_hours" name="total_service_hours" value="{{ salary.total_service_hours }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
+          </div>
+      </div>
+
+      <div class="row mt-4 p-3 rounded" style="background-color: #f0fff4; border: 2px solid #38a169;">
+          <div class="col-md-6 field-group">
+              <label class="form-label">特休給付天數：<span class="info-badge">自動計算</span></label>
+              <input type="number" id="leave_pay_days" name="leave_pay_days" value="{{ salary.leave_pay_days }}" class="form-control readonly-field" readonly>
+          </div>
+          <div class="col-md-6 field-group">
+              <label class="form-label">特休折抵金額：<span class="info-badge">自動計算</span></label>
+              <input type="number" id="leave_deduction_amount" name="leave_deduction_amount" value="{{ salary.leave_deduction_amount }}" class="form-control readonly-field" readonly>
+          </div>
+      </div>
+      <input type="hidden" id="leave_hours_per_day" name="leave_hours_per_day" value="{{ salary.leave_hours_per_day }}">
+    </div>
+
+    <div id="bonus" class="tab-content">
+      <h3><i class="fa-solid fa-gift"></i> 福利與各項補貼</h3>
+      <div class="row bg-warning-subtle p-3 rounded mb-4 border shadow-sm">
+          <div class="col-md-6">
+              <div class="form-check form-switch mt-2">
+                  <input type="checkbox" class="form-check-input" id="enable_checkup" name="enable_checkup" value="1" style="width: 60px; height: 30px;" {% if salary.check_up|int > 0 %}checked{% endif %}>
+                  <label for="enable_checkup" class="form-check-label ms-3 fw-bold">啟用本月健檢補助</label>
+              </div>
+          </div>
+          <div class="col-md-6">
+              <label class="form-label">健檢補助金額：</label>
+              <input name="check_up" id="check_up" value="{{ salary.check_up }}" class="form-control readonly-field" readonly>
+          </div>
+      </div>
+
+      <div class="row">
+          {% for f,label in [('licence_allowance','單一證照津貼'),('holiday_bonus','三節節慶獎金'),('birthday_bonus','生日祝賀禮金'),('referral_fee','員工介紹費'),('travel_allowance','員工旅遊津貼'),('training_fee','教育訓練補助'),('teaching_subsidy','教學指導補助')] %}
+          <div class="col-md-4 field-group">
+              <label class="form-label">{{label}}：</label>
+              <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input {% if f == 'birthday_bonus' %}readonly-field{% endif %}" {% if f == 'birthday_bonus' %}readonly{% endif %}>
+          </div>
+          {% endfor %}
+      </div>
+
+      <div class="card mt-4 p-4 border-primary">
+          <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">其他支付項目名稱：</label>
+                <input name="extras" value="{{ salary.extras }}" class="form-control" placeholder="例如：補發上月薪資">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">其他支付金額：</label>
+                <input name="extras_amout" value="{{ salary.extras_amout }}" class="form-control numeric-input">
+            </div>
+          </div>
+      </div>
+      <input type="hidden" id="total_hours" name="total_hours" value="{{ salary.total_hr }}">
+    </div>
+
+    <div id="insurance" class="tab-content">
+      <h3><i class="fa-solid fa-hand-holding-dollar"></i> 應代扣項目 (勞健保自付額)</h3>
+      <div class="row mb-4">
+          <div class="col-md-6 field-group">
+              <label class="form-label">勞保投保級距：</label>
+              <select id="insuranceRange" class="form-select" onchange="updateLaborInsurance(this.value)">
+                <option value="">讀取級距資料中...</option>
+              </select>
+              <input type="hidden" name="total_payment_insure_grade" id="total_payment_insure_grade" value="{{ salary.total_payment_insure_grade }}">
+          </div>
+          <div class="col-md-6 field-group">
+              <label class="form-label">健保投保級距：</label>
+              <select id="healthInsuranceRange" class="form-select" onchange="updateHealthInsurance(this.value)">
+                <option value="">讀取級距資料中...</option>
+              </select>
+              <input type="hidden" name="health_insure_grade" id="health_insure_grade" value="{{ salary.health_insure_grade }}">
+          </div>
+      </div>
+
+      <div id="health_insurance_detail" class="alert alert-info border-primary mb-4" style="display:none; font-size: 18px;">
+          <strong><i class="fa-solid fa-calculator"></i> 健保扣款試算明細：</strong><br>
+          <small id="health_calculation_text" class="fw-bold"></small>
+      </div>
+
+      <div class="row">
+          {% for f,label in [('Labor_premiums', '勞保自付額'),('Insurance_amount', '健保自付額'),('company_labor', '單位勞保(公)'),('company_occu', '單位職災(公)'),('company_health', '單位健保(公)'),('company_retire', '單位提撥退休金(公)')] %}
+          <div class="col-md-4 field-group">
+              <label class="form-label">{{label}}：</label>
+              <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input">
+          </div>
+          {% endfor %}
+      </div>
+
+      <div class="bg-light p-4 rounded border mt-4">
+          <label class="form-label">近三個月平均服務時數 (健檢/補助判斷)：</label>
+          <input type="number" id="last_three_month_hours" name="last_three_month_hours" class="form-control w-50" placeholder="請輸入平均時數">
+      </div>
+
+      <div class="row mt-4">
+          {% for f,label in [('home_caregiver_insurance','照服員責任險'),('group_accident_insurance','團體意外險'),('retirement_plan_withdraw','勞退自提金額')] %}
+          <div class="col-md-4 field-group">
+              <label class="form-label">{{label}}：</label>
+              <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input">
+          </div>
+          {% endfor %}
+      </div>
+
+      <div class="card mt-4 p-4 border-danger bg-danger-subtle">
+          <h5 class="fw-bold text-danger"><i class="fa-solid fa-circle-minus"></i> 額外扣款項目</h5>
+          <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">額外代扣項目名稱：</label>
+                <input type="text" name="additional_withholding_items" value="{{ salary.additional_withholding_items }}" class="form-control" placeholder="例如：代購物品、罰單">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">額外代扣金額：</label>
+                <input type="number" name="additional_withholding_amout" value="{{ salary.additional_withholding_amout }}" class="form-control">
+            </div>
+          </div>
+      </div>
+
+      <input type="hidden" id="employee_qualification" value="{{ info.qualification }}">
+      <input type="hidden" id="employee_subsidy" value="{{ info.subsidy }}">
+      <input type="hidden" id="employee_subsidy_none" value="{{ info.subsidy_none }}">
+      <input type="hidden" id="employee_subsidy_half" value="{{ info.subsidy_half }}">
+      <input type="hidden" id="employee_subsidy_full" value="{{ info.subsidy_full }}">
+    </div>
+
+    <div class="my-5 p-4 bg-white border-top shadow-sm sticky-bottom">
+        <button type="submit" class="btn btn-success btn-save">
+            <i class="fa-solid fa-cloud-arrow-up me-2"></i> 儲存所有分頁設定
+        </button>
+    </div>
+  </form>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // --- 頁籤切換邏輯 ---
+    function showTab(btn, tabName) {
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.nav-link-custom').forEach(n => n.classList.remove('active'));
+      
+      document.getElementById(tabName).classList.add('active');
+      btn.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    window.onload = async function() {
+      await loadLaborInsuranceLevels();
+      await loadHealthInsuranceLevels();
+      attachCheckupAutoFill();
+      calculateTotalHours();
+    };
+
+    // --- 勞保級距邏輯 (保持原有功能) ---
+    async function loadLaborInsuranceLevels() {
+      const select = document.getElementById('insuranceRange');
+      const savedGrade = document.getElementById('total_payment_insure_grade').value;
+      try {
+        const res = await fetch('/get_labor_insurance_levels');
+        const levels = await res.json();
+        select.innerHTML = '<option value="">-- 點擊選擇級距 --</option>';
+        levels.forEach(l => {
+          const opt = document.createElement('option');
+          opt.value = JSON.stringify(l);
+          opt.textContent = l.range;
+          if (String(l.range) === String(savedGrade)) opt.selected = true;
+          select.appendChild(opt);
+        });
+        if (select.value) updateLaborInsurance(select.value);
+      } catch(e) { console.error(e); }
+    }
+
+    function updateLaborInsurance(json) {
+      if (!json) return;
+      const l = JSON.parse(json);
+      document.getElementById('total_payment_insure_grade').value = l.range;
+      document.getElementById('Labor_premiums').value = l.employee_labor;
+      document.getElementById('company_labor').value = l.company_labor;
+      document.getElementById('company_occu').value = l.company_occu;
+      document.getElementById('company_retire').value = l.company_retire;
+    }
+
+    // --- 健保級距邏輯 (保持原有功能) ---
+    async function loadHealthInsuranceLevels() {
+      const select = document.getElementById('healthInsuranceRange');
+      const savedGrade = document.getElementById('health_insure_grade').value;
+      try {
+        const res = await fetch('/get_health_insurance_levels');
+        const levels = await res.json();
+        select.innerHTML = '<option value="">-- 點擊選擇級距 --</option>';
+        levels.forEach(l => {
+          const opt = document.createElement('option');
+          opt.value = JSON.stringify(l);
+          opt.textContent = l.Range;
+          if (String(l.Range) === String(savedGrade)) opt.selected = true;
+          select.appendChild(opt);
+        });
+        if (select.value) updateHealthInsurance(select.value);
+      } catch(e) { console.error(e); }
+    }
+
+    function updateHealthInsurance(json) {
+      if (!json) return;
+      const l = JSON.parse(json);
+      document.getElementById('health_insure_grade').value = l.Range;
+      document.getElementById('company_health').value = l.company_health;
+
+      const q = parseInt(document.getElementById('employee_qualification').value || '0');
+      const s = parseInt(document.getElementById('employee_subsidy').value || '0');
+      const s0 = parseInt(document.getElementById('employee_subsidy_none').value || '0');
+      const s1 = parseInt(document.getElementById('employee_subsidy_half').value || '0');
+      const s2 = parseInt(document.getElementById('employee_subsidy_full').value || '0');
+
+      const res = calculateHealthInsurance(l, q, s, s0, s1, s2);
+      document.getElementById('Insurance_amount').value = res.totalEmployeePay;
+      const detail = document.getElementById('health_insurance_detail');
+      document.getElementById('health_calculation_text').innerHTML = res.calculationSteps.join('<br>');
+      detail.style.display = 'block';
+    }
+
+    function calculateHealthInsurance(l, q, s, s0, s1, s2) {
+      const base = l.employee_and0 || 0;
+      let total = 0, steps = [];
+      let self = 0;
+      if (s == 0) self = base;
+      else if (s == 2) self = Math.floor(base / 2);
+      else if (s == 4) self = Math.floor(base * 0.75);
+      else if (s == 5) self = 0;
+      total += self;
+      steps.push(`本人: ${self} 元`);
+      const deps = Math.min(q, 3);
+      if (s0 > 0) { let c = Math.min(s0, deps); total += (base * c); steps.push(`眷屬(無補助) x ${c} 人: ${base*c} 元`); }
+      if (s1 > 0) { let c = Math.min(s1, deps); let h = Math.floor(base/2); total += (h * c); steps.push(`眷屬(1/2補助) x ${c} 人: ${h*c} 元`); }
+      steps.push(`<strong>計算總額: ${total} 元</strong>`);
+      return { totalEmployeePay: total, calculationSteps: steps };
+    }
+
+    // --- 自動填寫健檢 ---
+    function attachCheckupAutoFill() {
+      const chk = document.getElementById('enable_checkup');
+      const hrs = document.getElementById('last_three_month_hours');
+      const target = document.getElementById('check_up');
+      const isOneYear = {{ 'true' if one_year_passed else 'false' }};
+      const update = () => {
+        if (!chk.checked) { target.value = 0; return; }
+        const h = parseFloat(hrs.value || 0);
+        if (isOneYear && h >= 131) target.value = 1200;
+        else if (isOneYear && h >= 90) target.value = 600;
+        else target.value = 300;
+      };
+      chk.addEventListener('change', update);
+      hrs.addEventListener('input', update);
+    }
+
+    // --- 計算總工時與績效 ---
+    function calculateTotalHours() {
+      const ids = ["daily_work_hr","holiday_work_hr","transition_hr","Overtime_pay_weekdays910hr","Overtime_pay_weekdays1112hr","Overtime_pay_rest_days12hr","Overtime_pay_rest_days38hr","holiday_overtime_hr","National_holidays_hr"];
+      const total = ids.reduce((sum, id) => sum + parseFloat(document.getElementById(id)?.value || 0), 0);
+      document.getElementById("total_hours").value = total.toFixed(2);
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const cap = document.getElementById("capacity_amount");
+      const spl = document.getElementById("split_amount");
+      cap.addEventListener("input", () => {
+        const calculatedValue = Math.round(cap.value * 0.6);
+        spl.value = calculatedValue; // 自動更新，但因為欄位沒鎖，使用者之後可以改
+        window.calcPerformanceBonus();
+    });
+    spl.addEventListener("input", () => {
+        window.calcPerformanceBonus();
+    });
+
+      window.calcPerformanceBonus = () => {
+        const get = n => parseFloat(document.querySelector(`input[name='${n}']`)?.value || 0);
+        const split = get('split_amount');
+        const ot = get('total_overtime_pay_weekdays') + get('total_overtime_pay_restdays') + get('total_pay_holidays') + get('total_pay_national_holidays');
+        const perf = split - ((get('daily_work_hr')*200) + get('transition_allowance') + ot + get('duty_allowance'));
+        document.getElementById("Performance_bonuses").value = perf.toFixed(2);
+        const av = get('AA09_bonus_view');
+        document.getElementById("AA09_bonus").value = (perf < 0 ? (av + perf) : av).toFixed(2);
+      };
+
+      document.querySelectorAll("input").forEach(i => i.addEventListener("input", window.calcPerformanceBonus));
+      
+      const recalcLeave = () => {
+        const days = parseFloat(document.getElementById("leave_days").value || 0);
+        const taken = parseFloat(document.getElementById("leave_taken_days").value || 0);
+        const annual = parseFloat(document.getElementById("annual_total_hours").value || 0);
+        const service = parseFloat(document.getElementById("total_service_hours").value || 0);
+        const remain = days - taken;
+        document.getElementById("leave_hours_per_day").value = remain > 0 ? (annual/remain).toFixed(2) : 0;
+        const payDays = annual > 0 ? (service * remain / annual) : 0;
+        document.getElementById("leave_pay_days").value = payDays.toFixed(2);
+        document.getElementById("leave_deduction_amount").value = Math.round(payDays * 1600);
+      };
+      ["leave_days","leave_taken_days","annual_total_hours","total_service_hours"].forEach(id => document.getElementById(id).addEventListener("input", recalcLeave));
+    });
+
+    function validateForm() { return true; }
+  </script>
+{% endblock %}

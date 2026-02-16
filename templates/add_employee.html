@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}新增員工資料{% endblock %}
+{% block content %}
+<style>
+    /* 容器美化：加強邊框與專業陰影 */
+    .form-container {
+        background: #ffffff;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        max-width: 900px;
+        margin: 40px auto;
+        border: 3px solid #2d3748; /* 與表格一致的深色外框 */
+    }
+
+    /* 標題與分組美化 */
+    h2, h4 {
+        color: #1a365d;
+        font-weight: bold;
+        border-bottom: 3px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-bottom: 25px;
+    }
+
+    /* 標籤字體加大 */
+    .form-label {
+        font-size: 22px;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 10px;
+    }
+
+    /* ✨ 輸入框強化：加深邊框與焦點顏色 */
+    .form-control, .form-select {
+        font-size: 22px !important;
+        padding: 12px 15px !important;
+        border: 2.5px solid #718096 !important; /* 預設深灰色邊框 */
+        border-radius: 10px;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-in-out;
+    }
+
+    /* 當滑鼠點擊或進入輸入框時變色 */
+    .form-control:focus, .form-select:focus {
+        border-color: #2b6cb0 !important; /* 專業藍色邊框 */
+        background-color: #ffffff;
+        box-shadow: 0 0 0 5px rgba(43, 108, 176, 0.2) !important;
+        outline: none;
+    }
+
+    /* 必填星號顏色 */
+    .text-danger {
+        color: #e53e3e !important;
+        font-weight: bold;
+    }
+
+    /* 分隔線加強 */
+    hr {
+        border-top: 3px solid #cbd5e0;
+        opacity: 1;
+        margin: 40px 0;
+    }
+
+    /* 按鈕加大 */
+    .btn-lg-custom {
+        font-size: 26px !important;
+        padding: 15px 40px !important;
+        font-weight: bold;
+        border-radius: 15px;
+    }
+</style>
+
+<div class="form-container">
+    <h2><i class="fa-solid fa-user-plus"></i> 新增員工基本資料</h2>
+    <div class="mb-4">
+        <a href="{{ url_for('employee_manage') }}" class="btn btn-secondary px-4 py-2" style="font-size: 20px;">
+            <i class="fa-solid fa-arrow-left"></i> 返回員工管理
+        </a>
+    </div>
+
+    <form method="POST">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <label class="form-label">員工編號 <span class="text-danger">*</span></label>
+                <input type="text" name="employee_id" class="form-control" placeholder="請輸入編號" required>
+            </div>
+            <div class="col-md-6 mb-4">
+                <label class="form-label">員工姓名 <span class="text-danger">*</span></label>
+                <input type="text" name="employee_name" class="form-control" placeholder="請輸入全名" required>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <label class="form-label">出生日期 <span class="text-danger">*</span></label>
+                <input type="date" name="employee_birth" class="form-control" required>
+            </div>
+            <div class="col-md-4 mb-4">
+                <label class="form-label">身份證字號 <span class="text-danger">*</span></label>
+                <input type="text" name="employee_card" class="form-control" placeholder="A123456789" required>
+            </div>
+            <div class="col-md-4 mb-4">
+                <label class="form-label">到職日 <span class="text-danger">*</span></label>
+                <input type="date" name="employee_onboard" class="form-control" required>
+            </div>
+        </div>
+
+        <hr>
+        
+        <h4 class="mb-4"><i class="fa-solid fa-shield-halved"></i> 固定保險級距設定</h4>
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <label class="form-label">勞保預設級距 <span class="text-danger">*</span></label>
+                <select name="labor_insurance_grade" class="form-select" required>
+                    <option value="">請點擊選擇級距</option>
+                    {% for level in labor_levels %}
+                    <option value="{{ level.range }}">{{ level.range }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 mb-4">
+                <label class="form-label">健保預設級距 <span class="text-danger">*</span></label>
+                <select name="health_insurance_grade" class="form-select" required>
+                    <option value="">請點擊選擇級距</option>
+                    {% for level in health_levels %}
+                    <option value="{{ level.Range }}">{{ level.Range }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <hr>
+
+        <h4 class="mb-4"><i class="fa-solid fa-users"></i> 健保投保與眷屬設定</h4>
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <label class="form-label">投保身分</label>
+                <select name="qualification" class="form-select">
+                    <option value="0">本人</option>
+                    <option value="1">本人 + 1 眷口</option>
+                    <option value="2">本人 + 2 眷口</option>
+                    <option value="3">本人 + 3 眷口</option>
+                </select>
+            </div>
+            <div class="col-md-6 mb-4">
+                <label class="form-label">本人補助身分</label>
+                <select name="subsidy" class="form-select">
+                    <option value="0">無補助 (一般)</option>
+                    <option value="2">補助 1/2</option>
+                    <option value="4">補助 1/4</option>
+                    <option value="5">全額補助</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <label class="form-label">眷口 - 不補助 (人數)</label>
+                <input type="number" name="subsidy_none" class="form-control" value="0" min="0">
+            </div>
+            <div class="col-md-4 mb-4">
+                <label class="form-label">眷口 - 補助 1/2 (人數)</label>
+                <input type="number" name="subsidy_half" class="form-control" value="0" min="0">
+            </div>
+            <div class="col-md-4 mb-4">
+                <label class="form-label">眷口 - 全額補助 (人數)</label>
+                <input type="number" name="subsidy_full" class="form-control" value="0" min="0">
+            </div>
+        </div>
+
+        <hr>
+
+        <h4 class="mb-4"><i class="fa-solid fa-calendar-check"></i> 特休發放設定</h4>
+        <div class="mb-5">
+            <label class="form-label">每年特休發放月份</label>
+            <select name="leave_payment_month_of_year" class="form-select">
+                <option value="">-- 請選擇月份 --</option>
+                {% for month in range(1, 13) %}
+                <option value="{{ month }}">每年 {{ month }} 月</option>
+                {% endfor %}
+            </select>
+            <small class="text-muted" style="font-size: 18px;">※ 系統將於此月份自動提醒發放特休獎金</small>
+        </div>
+
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg-custom shadow">
+                <i class="fa-solid fa-save me-2"></i> 確認新增員工資料
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

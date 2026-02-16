@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}選擇匯出年月 - 專業版{% endblock %}
+
+{% block content %}
+<style>
+    /* 核心卡片容器 */
+    .select-card {
+        max-width: 700px;
+        margin: 60px auto;
+        background: #ffffff;
+        border-radius: 25px;
+        border: 3px solid #2d3748; /* 深色外框 */
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    /* 頂部裝飾區 */
+    .select-header {
+        background: #f7fafc;
+        padding: 40px;
+        text-align: center;
+        border-bottom: 3px solid #e2e8f0;
+    }
+    .select-header i {
+        font-size: 60px;
+        color: var(--accent-color);
+        margin-bottom: 15px;
+    }
+    .select-header h2 {
+        border: none;
+        padding: 0;
+        margin: 0;
+        font-size: 32px;
+        color: #1a365d;
+    }
+
+    /* 表單區塊 */
+    .select-body {
+        padding: 50px;
+    }
+
+    /* 標籤字體加大 */
+    .form-label {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 15px;
+        display: block;
+    }
+
+    /* ✨ 下拉選單強化：大字體與深邊框 */
+    .form-select-lg {
+        height: 80px;
+        font-size: 30px !important;
+        font-weight: bold;
+        border: 3px solid #4a5568 !important;
+        border-radius: 15px;
+        background-color: #f8fafc;
+        text-align: center;
+        margin-bottom: 35px;
+        transition: all 0.2s;
+    }
+    .form-select-lg:focus {
+        border-color: #2b6cb0 !important;
+        box-shadow: 0 0 0 8px rgba(43, 108, 176, 0.1) !important;
+        background-color: #fff;
+    }
+
+    /* 大按鈕設計 */
+    .btn-action {
+        width: 100%;
+        padding: 20px !important;
+        font-size: 28px !important;
+        border-radius: 15px;
+        font-weight: bold;
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+
+    .back-link-custom {
+        display: block;
+        text-align: center;
+        margin-top: 25px;
+        font-size: 20px;
+        color: #718096;
+        text-decoration: none;
+    }
+    .back-link-custom:hover { text-decoration: underline; }
+</style>
+
+<div class="select-card">
+    <div class="select-header">
+        <i class="fa-solid {% if 'pdf' in request.path %}fa-file-pdf{% else %}fa-file-excel{% endif %}"></i>
+        <h2>選擇匯出年月</h2>
+        <p class="text-muted fs-5 mt-2">請確認要產出的薪資單月份</p>
+    </div>
+
+    <div class="select-body">
+        <form method="POST">
+            <div class="mb-4">
+                <label for="year" class="form-label">1. 請選擇年份</label>
+                <select name="year" id="year" class="form-select form-select-lg" required>
+                    {% for y in years %}
+                        <option value="{{ y }}" {% if y == default_year %}selected{% endif %}>{{ y }} 年</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-5">
+                <label for="month" class="form-label">2. 請選擇月份</label>
+                <select name="month" id="month" class="form-select form-select-lg" required>
+                    </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-action">
+                <i class="fa-solid fa-cloud-arrow-down me-2"></i> 
+                確認並執行{% if 'pdf' in request.path %} PDF {% else %} EXCEL {% endif %}匯出
+            </button>
+        </form>
+
+        <a href="{{ url_for('employee_list') }}" class="back-link-custom">
+            <i class="fa-solid fa-circle-chevron-left me-1"></i> 取消並返回員工列表
+        </a>
+    </div>
+</div>
+
+<script>
+    const availableMonths = {{ available_months_by_year|tojson }};
+    const yearSelect = document.getElementById("year");
+    const monthSelect = document.getElementById("month");
+
+    function updateMonths() {
+        const selectedYear = yearSelect.value;
+        const defaultMonth = "{{ default_month }}";
+        monthSelect.innerHTML = "";
+
+        if (selectedYear && availableMonths[selectedYear]) {
+            const months = availableMonths[selectedYear];
+            months.forEach(m => {
+                const option = document.createElement("option");
+                option.value = m;
+                // 長輩友善：顯示「01 月」格式
+                option.textContent = m.toString().padStart(2, "0") + " 月";
+                if (m.toString() === defaultMonth.toString()) {
+                    option.selected = true;
+                }
+                monthSelect.appendChild(option);
+            });
+        }
+    }
+
+    // 初始化與監聽
+    document.addEventListener('DOMContentLoaded', updateMonths);
+    yearSelect.addEventListener("change", updateMonths);
+</script>
+{% endblock %}

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}預覽薪資 - {{ employee_name }}{% endblock %}
+
+{% block content %}
+<style>
+    /* 強化標題與區隔 */
+    .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 4px solid #1a365d;
+    }
+
+    /* 橫向捲動容器美化 */
+    .table-scroll-container {
+        width: 100%;
+        overflow-x: auto;
+        border: 3px solid #2d3748;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        background: white;
+    }
+
+    /* 專業報表表格 */
+    .preview-table {
+        width: max-content; /* 確保內容撐開捲動條 */
+        border-collapse: collapse;
+        margin: 0;
+        font-size: 20px;
+    }
+
+    .preview-table th {
+        background-color: #2d3748;
+        color: white;
+        padding: 18px 20px;
+        border: 2px solid #4a5568;
+        text-align: center;
+        white-space: nowrap;
+        font-weight: 900;
+    }
+
+    .preview-table td {
+        padding: 15px 20px;
+        border: 1px solid #cbd5e0;
+        text-align: center;
+        white-space: nowrap;
+        color: #2d3748;
+    }
+
+    /* 🌟 首欄固定 (Sticky Column) 讓年月始終可見 */
+    .preview-table th:first-child, 
+    .preview-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        background-color: #edf2f7; /* 淺灰色背景區隔 */
+        border-right: 3px solid #2d3748;
+        font-weight: bold;
+    }
+    
+    .preview-table th:first-child {
+        background-color: #1a365d;
+        color: white;
+    }
+
+    /* 隔行變色增加閱讀性 */
+    .preview-table tr:nth-child(even) td {
+        background-color: #f8fafc;
+    }
+    .preview-table tr:hover td {
+        background-color: #ebf4ff;
+    }
+
+    /* 金額高亮樣式 */
+    .text-amount {
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+        color: #2c5282;
+    }
+    .text-final {
+        color: #c53030;
+        font-weight: 800;
+    }
+
+    .back-btn-box {
+        margin-bottom: 20px;
+    }
+</style>
+
+<div class="preview-header">
+    <h2 class="mb-0"><i class="fa-solid fa-magnifying-glass-chart me-2"></i> 薪資歷史預覽</h2>
+    <div class="text-end">
+        <span class="badge bg-primary fs-5" style="padding: 10px 20px;">
+            員工：{{ employee_name }} ({{ employee_id }})
+        </span>
+    </div>
+</div>
+
+<div class="back-btn-box">
+    <a href="{{ url_for('employee_list') }}" class="btn btn-secondary px-4 py-2">
+        <i class="fa-solid fa-arrow-left me-2"></i> 返回薪資列表
+    </a>
+</div>
+
+<div class="table-scroll-container">
+    <table class="preview-table">
+        <thead>
+            <tr>
+                <th>薪資年月</th>
+                <th>薪資(本薪)</th>
+                <th>轉場津貼</th>
+                <th>職務津貼</th>
+                <th>平日加班</th>
+                <th>休息日加班</th>
+                <th>例假日加班</th>
+                <th>國定假日</th>
+                <th>績效獎金</th>
+                <th>A碼鼓勵</th>
+                <th>特休未休</th>
+                <th>跨區補助</th>
+                <th>節日獎金</th>
+                <th>教育培訓</th>
+                <th>生日禮金</th>
+                <th>證照補助</th>
+                <th>體檢補助</th>
+                <th>旅遊補助</th>
+                <th style="background-color: #742a2a;">勞保費</th>
+                <th style="background-color: #742a2a;">健保費</th>
+                <th style="background-color: #742a2a;">照服員險</th>
+                <th style="background-color: #742a2a;">意外險</th>
+                <th style="background-color: #742a2a;">勞退自提</th>
+                <th style="background-color: #276749;">應發薪資</th>
+                <th style="background-color: #276749;">實發薪資</th>
+                <th>轉帳(10日)</th>
+                <th>轉帳(30日)</th>
+                <th>勞保級距</th>
+                <th>公司-勞保</th>
+                <th>公司-職保</th>
+                <th>公司-健保</th>
+                <th>公司-勞退</th>
+                <th>居服產能</th>
+                <th>A碼獎金</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in salaries %}
+            <tr>
+                <td>{{ r.year_month }}</td>
+                <td class="text-amount">{{ r.daily_work_salary|int }}</td>
+                <td class="text-amount">{{ r.transition_allowance|int }}</td>
+                <td class="text-amount">{{ r.duty_allowance|int }}</td>
+                <td class="text-amount">{{ r.total_overtime_pay_weekdays|int }}</td>
+                <td class="text-amount">{{ r.total_overtime_pay_restdays|int }}</td>
+                <td class="text-amount">{{ r.total_pay_holidays|int }}</td>
+                <td class="text-amount">{{ r.total_pay_national_holidays|int }}</td>
+                <td class="text-amount">{{ r.Performance_bonuses|int }}</td>
+                <td class="text-amount">{{ r.AA09_bonus|int }}</td>
+                <td class="text-amount">{{ r.leave_deduction_amount|int }}</td>
+                <td class="text-amount">{{ r.Inter_district_subsidie|int }}</td>
+                <td class="text-amount">{{ r.holiday_bonus|int }}</td>
+                <td class="text-amount">{{ r.teaching_subsidy|int }}</td>
+                <td class="text-amount">{{ r.birthday_bonus|int }}</td>
+                <td class="text-amount">{{ r.licence_allowance|int }}</td>
+                <td class="text-amount">{{ r.check_up|int }}</td>
+                <td class="text-amount">{{ r.travel_allowance|int }}</td>
+                <td class="text-amount" style="color: #c53030;">{{ r.Labor_premiums|int }}</td>
+                <td class="text-amount" style="color: #c53030;">{{ r.Insurance_amount|int }}</td>
+                <td class="text-amount" style="color: #c53030;">{{ r.home_caregiver_insurance|int }}</td>
+                <td class="text-amount" style="color: #c53030;">{{ r.group_accident_insurance|int }}</td>
+                <td class="text-amount" style="color: #c53030;">{{ r.retirement_plan_withdraw|int }}</td>
+                <td class="text-final">{{ r.payroll_due|int }}</td>
+                <td class="text-final" style="font-size: 24px;">{{ r.paid_in_salary|int }}</td>
+                <td>{{ r.tenth_salary|int }}</td>
+                <td>{{ r.thirtieth_salary|int }}</td>
+                <td>{{ r.total_payment_insure_grade }}</td>
+                <td class="text-muted">{{ r.company_labor|int }}</td>
+                <td class="text-muted">{{ r.company_occu|int }}</td>
+                <td class="text-muted">{{ r.company_health|int }}</td>
+                <td class="text-muted">{{ r.company_retire|int }}</td>
+                <td>{{ r.Split_amount|int }}</td>
+                <td>{{ r.AA09_bonus|int }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4 p-3 bg-light rounded border text-muted" style="font-size: 18px;">
+    <i class="fa-solid fa-circle-info me-2"></i> 提示：金額部分已自動轉換為整數顯示；您可以使用下方的捲動條查看完整明細。
+</div>
+{% endblock %}

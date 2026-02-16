@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}匯入歷史資料 - 專業版{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    /* 核心卡片容器：加強邊框與專業陰影 */
+    .import-card { 
+        border-radius: 25px; 
+        border: 3px solid #2d3748; 
+        overflow: hidden; 
+        max-width: 1100px; 
+        margin: 40px auto;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    
+    /* 標頭改為深藍漸層：更具商用穩定感 */
+    .import-header { 
+        background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%); 
+        color: white; 
+        padding: 45px; 
+    }
+    
+    .import-header h2 {
+        color: #ffffff !important;
+        font-size: 38px;
+        font-weight: bold;
+        margin-top: 10px;
+        border: none; /* 移除 base.html 可能帶有的標題邊框 */
+        padding: 0;
+    }
+
+    .card-body {
+        padding: 50px !important;
+    }
+
+    /* 步驟指引美化 */
+    .step-badge { 
+        width: 45px; 
+        height: 45px; 
+        background: #2b6cb0; 
+        color: white; 
+        border-radius: 50%; 
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center; 
+        margin-right: 18px; 
+        font-weight: bold; 
+        font-size: 22px;
+        flex-shrink: 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .step-item {
+        background: #f8fafc;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #e2e8f0;
+        transition: 0.3s;
+    }
+    .step-item:hover {
+        background: #f1f5f9;
+        transform: translateX(5px);
+    }
+
+    .step-item h6 {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: #1a365d;
+    }
+
+    .step-item p {
+        font-size: 19px;
+        line-height: 1.6;
+        margin-bottom: 0;
+    }
+
+    /* 上傳區域：極大化與色彩強化 */
+    .upload-area { 
+        border: 4px dashed #cbd5e0; 
+        border-radius: 25px; 
+        padding: 80px 40px; 
+        text-align: center; 
+        transition: all 0.3s ease-in-out; 
+        background: #ffffff; 
+        cursor: pointer; 
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .upload-area:hover { 
+        border-color: #2b6cb0; 
+        background: #f0f7ff; 
+    }
+    .upload-area i {
+        color: #718096;
+        transition: 0.3s;
+    }
+    .upload-area:hover i {
+        color: #2b6cb0;
+        transform: scale(1.1);
+    }
+    .upload-area h5 {
+        font-size: 28px;
+        margin-top: 20px;
+        font-weight: bold;
+    }
+
+    /* 按鈕美化 */
+    .btn-import { 
+        background: #2f855a; /* 改為成功綠色，象徵執行 */
+        color: white; 
+        border: none; 
+        padding: 20px 50px; 
+        border-radius: 15px; 
+        font-weight: bold; 
+        font-size: 26px;
+        transition: 0.3s; 
+        width: 100%;
+        box-shadow: 0 8px 15px rgba(47, 133, 90, 0.2);
+    }
+    .btn-import:hover { 
+        background: #276749; 
+        color: white; 
+        transform: translateY(-4px);
+        box-shadow: 0 12px 20px rgba(47, 133, 90, 0.3);
+    }
+
+    /* Loading 遮罩優化 */
+    #loadingOverlay { 
+        display: none; 
+        position: fixed; 
+        top: 0; left: 0; 
+        width: 100%; height: 100%; 
+        background: rgba(255,255,255,0.95); 
+        z-index: 10000; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+    }
+</style>
+
+<div id="loadingOverlay">
+    <div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem; border-width: 0.5rem;"></div>
+    <h3 class="mt-4 text-primary fw-bold">系統正在解析並導入數據，請勿關閉視窗...</h3>
+    <p class="text-muted fs-5">這可能需要幾秒鐘的時間，完成後將自動跳轉。</p>
+</div>
+
+<div class="container mt-5 mb-5">
+    <div class="card import-card">
+        <div class="import-header text-center">
+            <i class="fa-solid fa-file-import fa-4x" style="color: #ffffff;"></i>
+            <h2>匯入歷史薪資資料</h2>
+            <p style="font-size: 22px; opacity: 0.9; margin-top: 10px;">快速將 Excel 數據與現有系統同步</p>
+        </div>
+
+        <div class="card-body">
+            <div class="row gx-5">
+                <div class="col-lg-6 mb-5 mb-lg-0">
+                    <h4 class="mb-4 fw-bold" style="color: #1a365d; border-left: 8px solid #2b6cb0; padding-left: 15px;">
+                        匯入前準備步驟
+                    </h4>
+                    
+                    <div class="vstack gap-4">
+                        <div class="d-flex align-items-start step-item">
+                            <div class="step-badge">1</div>
+                            <div>
+                                <h6 class="fw-bold">準備標準範本</h6>
+                                <p class="text-muted">請務必使用系統「匯出薪資總表」產出的 Excel。若修改標題欄位名稱，將導致匯入失敗。</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-start step-item">
+                            <div class="step-badge">2</div>
+                            <div>
+                                <h6 class="fw-bold">核對員工編號</h6>
+                                <p class="text-muted">Excel 內的<strong>員工編號</strong>必須已存在於系統中。建議先完成員工基本資料建立。</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-start step-item">
+                            <div class="step-badge">3</div>
+                            <div>
+                                <h6 class="fw-bold">檢查年月格式</h6>
+                                <p class="text-muted">年份月份請確保為 6 位數字格式（如：202305）。重複月份的資料將被自動過濾。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <form action="{{ url_for('import_history_process') }}" method="POST" enctype="multipart/form-data" id="importForm">
+                        <div class="upload-area mb-4" onclick="document.getElementById('fileInput').click()">
+                            <i class="fa-solid fa-cloud-arrow-up fa-5x mb-3"></i>
+                            <h5>點擊選取或拖拽檔案</h5>
+                            <p class="text-muted fs-5">僅限支援 .xlsx / .xls 格式</p>
+                            
+                            <input type="file" name="file" id="fileInput" accept=".xlsx, .xls" style="display: none;" onchange="updateFileName()">
+                            
+                            <div id="fileNameDisplay" class="mt-4 p-3 rounded-pill bg-light text-success fw-bold border border-success" style="display:none; font-size: 20px;">
+                                </div>
+                        </div>
+
+                        <div class="text-center pt-3">
+                            <button type="submit" class="btn btn-import mb-4">
+                                <i class="fa-solid fa-circle-check me-2"></i>確認上傳並執行匯入
+                            </button>
+                            <br>
+                            <a href="{{ url_for('user') }}" class="btn-back fw-bold">
+                                <i class="fa-solid fa-arrow-rotate-left me-1"></i> 取消動作，回到主頁面
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateFileName() {
+        const input = document.getElementById('fileInput');
+        const display = document.getElementById('fileNameDisplay');
+        if (input.files.length > 0) {
+            display.style.display = 'inline-block';
+            display.innerHTML = '<i class="fa-solid fa-file-excel me-2"></i>已選取：' + input.files[0].name;
+        }
+    }
+
+    document.getElementById('importForm').onsubmit = function() {
+        const input = document.getElementById('fileInput');
+        if (input.files.length === 0) {
+            alert("請先選取 Excel 檔案後再點擊匯入！");
+            return false;
+        }
+        // 觸發全螢幕 Loading
+        document.getElementById('loadingOverlay').style.display = 'flex';
+    };
+</script>
+{% endblock %}

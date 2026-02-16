@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}健保級距表管理 - 專業版{% endblock %}
+{% block content %}
+<style>
+    /* 統一工具列設計：深色外框與大字體 */
+    .admin-toolbar {
+        background: #edf2f7;
+        padding: 25px;
+        border-radius: 15px;
+        border: 2px solid #cbd5e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    /* 統一表格樣式：專業報表質感與加深外框 */
+    .admin-table {
+        border: 3px solid #2d3748;
+        border-radius: 12px;
+        overflow: hidden;
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .admin-table th {
+        background-color: #2d3748;
+        color: white;
+        font-size: 22px;
+        padding: 15px;
+        border: 1px solid #4a5568;
+        text-align: center;
+    }
+    .admin-table td {
+        font-size: 20px;
+        padding: 15px;
+        border: 1px solid #e2e8f0;
+        text-align: center;
+        background: white;
+        white-space: nowrap; /* 防止金額換行 */
+    }
+    .admin-table tr:nth-child(even) td { background: #f8fafc; }
+    .admin-table tr:hover td { background: #ebf4ff; }
+    
+    /* 側邊標記：強化第一欄級距顯示 */
+    .range-column {
+        fw-bold;
+        color: #2b6cb0;
+        border-right: 2px solid #cbd5e0 !important;
+    }
+</style>
+
+<div class="d-flex align-items-center mb-4">
+    <h2 class="mb-0"><i class="fa-solid fa-heart-pulse me-2"></i> 健保級距表管理</h2>
+</div>
+
+<div class="admin-toolbar shadow-sm">
+    <a href="{{ url_for('user') }}" class="btn btn-secondary" style="font-size: 20px;">
+        <i class="fa-solid fa-arrow-left"></i> 返回主頁
+    </a>
+    <div class="d-flex gap-3">
+        <input type="file" id="csvFile" accept=".csv" style="display:none">
+        <button class="btn btn-success" style="font-size: 22px; padding: 12px 30px;" onclick="document.getElementById('csvFile').click()">
+            <i class="fa-solid fa-file-import"></i> 匯入 CSV 級距
+        </button>
+        <a href="{{ url_for('download_health_insurance_template') }}" class="btn btn-outline-primary" style="font-size: 20px; border-width: 2px;">
+            <i class="fa-solid fa-download"></i> 下載範本
+        </a>
+    </div>
+</div>
+
+<div class="table-container shadow-lg" style="border-radius: 15px; overflow-x: auto; border: 3px solid #2d3748;">
+    <table class="admin-table" style="min-width: 1100px;">
+        <thead>
+            <tr>
+                <th style="background: #2b6cb0;">薪資級距</th>
+                <th>本人(0)</th>
+                <th>本人+1眷</th>
+                <th>本人+2眷</th>
+                <th>本人+3眷</th>
+                <th style="background: #2d3748;">單位負擔額</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in levels %}
+            <tr>
+                <td class="fw-bold range-column">{{ row.Range }}</td>
+                <td>{{ row.employee_and0 }} 元</td>
+                <td>{{ row.employee_and1 }} 元</td>
+                <td>{{ row.employee_and2 }} 元</td>
+                <td>{{ row.employee_and3 }} 元</td>
+                <td class="fw-bold" style="background: #f8fafc; color: #1a202c;">{{ row.company_health }} 元</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4 p-4 bg-light rounded border" style="border-left: 8px solid #2b6cb0 !important;">
+    <h5 class="fw-bold"><i class="fa-solid fa-circle-info text-primary"></i> 管理注意事項：</h5>
+    <ul class="mb-0 fs-5 text-muted">
+        <li>請確認 CSV 檔案內的第一欄標題為 <strong>Range</strong> 以利系統辨識。</li>
+        <li>匯入後系統會自動更新所有員工的計算基準，建議在每月初調整。</li>
+        <li>健保單位負擔額已包含平均眷口數計算，不需手動調整比例。</li>
+    </ul>
+</div>
+
+<script>
+document.getElementById('csvFile').onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if(!confirm("確定要匯入新的健保級距資料嗎？這將會覆蓋現有所有設定。")) {
+        this.value = '';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // 顯示 Loading (可選，若有實作上一頁的 Loading 遮罩可在此觸發)
+    fetch("{{ url_for('health_insurance_level_manage') }}", {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ 健保級距表匯入成功！');
+            location.reload();
+        } else {
+            alert('❌ 匯入失敗：' + data.error);
+        }
+    })
+    .catch(err => alert('系統發生錯誤：' + err));
+};
+</script>
+{% endblock %}

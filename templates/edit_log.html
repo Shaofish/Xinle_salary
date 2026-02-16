@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* 紀錄卡片化設計 */
+    .log-card {
+        background: #fff;
+        border: 2px solid #2d3748;
+        border-radius: 15px;
+        margin-bottom: 25px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+    }
+    .log-card:hover { transform: translateX(5px); }
+
+    /* 標頭背景色：根據類型區分 */
+    .log-header {
+        padding: 15px 25px;
+        border-bottom: 2px solid #cbd5e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+    }
+
+    /* 🌟 特殊狀態樣式 */
+    .log-resign { border-color: #c53030 !important; } /* 離職：紅框 */
+    .log-resign .log-header { background: #fff5f5; color: #c53030; }
+    
+    .log-reinstate { border-color: #2f855a !important; } /* 復職：綠框 */
+    .log-reinstate .log-header { background: #f0fff4; color: #2f855a; }
+
+    .log-body { padding: 20px 25px; }
+
+    /* 變更內容列表 */
+    .change-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px dashed #e2e8f0;
+        font-size: 20px;
+    }
+    .change-item:last-child { border-bottom: none; }
+    
+    .field-label { min-width: 180px; font-weight: bold; color: #4a5568; }
+    .val-old { color: #718096; text-decoration: line-through; margin-right: 10px; }
+    .val-new { color: #2d3748; font-weight: bold; background: #ebf8ff; padding: 2px 8px; border-radius: 5px; }
+
+    .badge-status { font-size: 18px; padding: 5px 15px; border-radius: 8px; }
+</style>
+
+<h2 class="welcome-text"><i class="fa-solid fa-clock-rotate-left"></i> 員工異動歷史全紀錄</h2>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div style="font-size: 24px;">
+        員工姓名：<strong class="text-primary">{{ employee_name }}</strong> 
+        <span class="text-muted ms-3">(編號: {{ employee_id }})</span>
+    </div>
+    <a href="{{ url_for('employee_list') }}" class="btn btn-secondary btn-lg"><i class="fa-solid fa-arrow-left"></i> 返回列表</a>
+</div>
+
+{% for log in logs %}
+<div class="log-card 
+    {% if '離職' in log.action_type %}log-resign
+    {% elif '復職' in log.action_type %}log-reinstate{% endif %}">
+    
+    <div class="log-header">
+        <div>
+            <span class="fw-bold"><i class="fa-solid fa-calendar-day me-2"></i>{{ log.timestamp }}</span>
+            <span class="ms-4 text-muted">操作者：<strong>{{ log.userid }}</strong></span>
+        </div>
+        <span class="badge badge-status 
+            {% if '離職' in log.action_type %}bg-danger
+            {% elif '復職' in log.action_type %}bg-success
+            {% else %}bg-primary{% endif %}">
+            {{ log.action_type }}
+        </span>
+    </div>
+    
+    <div class="log-body">
+        {% for field, change in log.changed_fields.items() %}
+        <div class="change-item">
+            <div class="field-label">
+                <i class="fa-solid fa-caret-right me-2 text-primary"></i>{{ field }}
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="val-old">{{ change.old }}</span>
+                <i class="fa-solid fa-arrow-right-long text-muted mx-3"></i>
+                <span class="val-new">{{ change.new }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% if not logs %}
+    <div class="text-center p-5 bg-white rounded shadow-sm border">
+        <i class="fa-solid fa-folder-open fa-4x text-muted mb-3"></i>
+        <p class="fs-4 text-muted">目前尚無此員工的異動紀錄。</p>
+    </div>
+{% endif %}
+{% endblock %}

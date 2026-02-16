@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .welcome-section {
+        text-align: center;
+        margin-bottom: 50px;
+    }
+    .welcome-section h2 { border: none; padding: 0; font-size: 36px; }
+
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 30px;
+        padding: 20px;
+    }
+
+    .feature-card {
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 40px 20px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--secondary-color);
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    .feature-card:hover {
+        transform: translateY(-10px);
+        border-color: var(--accent-color);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        background-color: #f8fafc;
+    }
+
+    .feature-card i {
+        font-size: 60px;
+        margin-bottom: 20px;
+        color: var(--accent-color);
+    }
+
+    .feature-card span {
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+    .feature-card p {
+        font-size: 18px;
+        color: var(--text-muted);
+        margin-top: 10px;
+    }
+
+    .logout-section {
+        text-align: right;
+        margin-bottom: 20px;
+    }
+</style>
+
+<div class="logout-section">
+    <a href="/" class="btn btn-danger" id="logoutBtn">
+        <i class="fa-solid fa-right-from-bracket me-2"></i> 安全登出
+    </a>
+</div>
+
+<div class="welcome-section">
+    <h2>您好，歡迎使用管理系統</h2>
+    <p style="font-size: 22px; color: var(--text-muted);">請點擊下方大方塊執行任務</p>
+</div>
+
+<div class="feature-grid">
+    <a href="{{ url_for('employee_manage') }}" class="feature-card">
+        <i class="fa-solid fa-user-gear"></i>
+        <span>員工資料管理</span>
+        <p>新增、修改或離職處理</p>
+    </a>
+    <a href="{{ url_for('employee_list') }}" class="feature-card">
+        <i class="fa-solid fa-file-invoice-dollar"></i>
+        <span>薪資結算作業</span>
+        <p>計算薪資、產出PDF單據</p>
+    </a>
+    <a href="{{ url_for('labor_insurance_level_manage') }}" class="feature-card">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>勞保級距設定</span>
+        <p>調整政府最新勞保標準</p>
+    </a>
+    <a href="{{ url_for('health_insurance_level_manage') }}" class="feature-card">
+        <i class="fa-solid fa-heart-pulse"></i>
+        <span>健保級距設定</span>
+        <p>調整政府最新健保標準</p>
+    </a>
+    <a href="{{ url_for('import_history_select') }}" class="feature-card" style="border-style: dashed;">
+        <i class="fa-solid fa-upload"></i>
+        <span>匯入歷史資料</span>
+        <p>從 Excel 批次導入舊數據</p>
+    </a>
+</div>
+
+<script>
+    document.getElementById("logoutBtn").onclick = function(e) {
+        if(!confirm("確定要登出系統嗎？")) e.preventDefault();
+    };
+</script>
+{% endblock %}

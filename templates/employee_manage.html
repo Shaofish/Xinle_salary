@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* 1. 頁頭管理盒：專業漸層與陰影 */
+    .manage-header-box {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        background: #ffffff;
+        padding: 25px;
+        border-radius: 15px;
+        border: 2px solid #cbd5e0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    /* 2. 新增員工大按鈕：長輩友善尺寸 */
+    .btn-add-large {
+        background-color: #2f855a;
+        color: white;
+        padding: 15px 35px !important;
+        font-size: 24px !important;
+        border-radius: 12px;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+    .btn-add-large:hover {
+        background-color: #276749;
+        transform: translateY(-2px);
+    }
+
+    /* 3. 表格核心樣式：加強外框與格線 */
+    .salary-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+        border: 3px solid #2d3748; /* 加深外框 */
+        background-color: white;
+        table-layout: auto;
+    }
+
+    .salary-table th {
+        background-color: #edf2f7;
+        color: #1a365d;
+        font-weight: 900;
+        font-size: 22px;
+        padding: 15px;
+        border: 2px solid #2d3748;
+        text-align: center;
+    }
+
+    .salary-table td {
+        padding: 15px 10px;
+        border: 2px solid #2d3748;
+        font-size: 22px;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap; /* ✨ 關鍵：防止文字換行 */
+    }
+
+    /* 4. 水平按鈕群組：確保功能不重疊 */
+    .btn-row-group {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px; /* 按鈕間距 */
+    }
+
+    .btn-sm-custom {
+        padding: 10px 18px !important;
+        font-size: 20px !important;
+        font-weight: bold;
+        border-radius: 8px;
+        white-space: nowrap;
+        border: none;
+        cursor: pointer;
+    }
+
+    /* 5. 離職資訊樣式 */
+    .resign-info {
+        display: block;
+        font-size: 18px;
+        color: #c53030;
+        margin-top: 5px;
+        font-weight: bold;
+    }
+
+    /* 6. 卡片包裝盒：商用質感 */
+    .manage-card {
+        border-radius: 15px;
+        overflow: hidden;
+        border: 3px solid #2d3748;
+        margin-bottom: 50px;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    }
+    .card-header-custom {
+        background: #2d3748;
+        color: white;
+        padding: 15px 25px;
+        font-size: 24px;
+        font-weight: bold;
+    }
+</style>
+
+<h1><i class="fa-solid fa-user-gear"></i> 員工基本資料管理</h1>
+
+<div class="manage-header-box">
+    <a href="{{ url_for('user') }}" class="btn btn-secondary" style="font-size: 20px;">
+        <i class="fa-solid fa-arrow-left"></i> 返回主頁
+    </a>
+    <a href="{{ url_for('add_employee') }}" class="btn btn-add-large">
+        <i class="fa-solid fa-user-plus"></i> 新增員工資料
+    </a>
+</div>
+
+<div class="search-container" style="background: #f1f5f9; padding: 25px; border-radius: 15px; border: 2px solid #cbd5e0; margin-bottom: 30px;">
+    <input type="text" id="searchInput" placeholder="🔍 點擊此處輸入姓名或編號搜尋..." 
+           style="width: 100%; font-size: 26px; padding: 15px; margin: 0; border-radius: 10px; border: 2px solid #cbd5e0;">
+</div>
+
+<div class="manage-card">
+    <div class="card-header-custom">
+        <i class="fa-solid fa-user-check"></i> 在職員工名單
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="salary-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">編號</th>
+                    <th style="width: 25%;">姓名</th>
+                    <th style="width: 60%;">管理功能 (水平排列)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in employees %}
+                <tr>
+                    <td class="bold">{{ e.employee_id }}</td>
+                    <td class="bold" style="font-size: 26px;">{{ e.employee_name }}</td>
+                    <td>
+                        <div class="btn-row-group">
+                            <a href="{{ url_for('edit_profile', employee_id=e.employee_id) }}" 
+                               class="btn btn-sm-custom" style="background: #b17f0c; color: white;">編輯資料</a>
+                            
+                            <form method="POST" action="{{ url_for('resign_employee', employee_id=e.employee_id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm-custom" style="background: #ff6600; color: white;" 
+                                        onclick="return confirm('⚠️ 確定要將【{{ e.employee_name }}】標記為離職嗎？')">離職</button>
+                            </form>
+
+                            <form method="POST" action="{{ url_for('hide_employee', employee_id=e.employee_id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm-custom" style="background: #c53030; color: white;" 
+                                        onclick="return confirm('❌ 警告：刪除後無法復原！確定刪除此員工嗎？')">刪除</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="manage-card" style="border-color: #718096;">
+    <div class="card-header-custom" style="background: #718096;">
+        <i class="fa-solid fa-user-slash"></i> 已離職 / 歷史員工
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="salary-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">編號</th>
+                    <th style="width: 25%;">姓名</th>
+                    <th style="width: 60%;">管理功能</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in resigned_employees %}
+                <tr>
+                    <td>{{ e.employee_id }}</td>
+                    <td>
+                        <span class="bold" style="font-size: 26px;">{{ e.employee_name }}</span>
+                        {% if e.resign_date %}
+                        <span class="resign-info">離職日：{{ e.resign_date.strftime("%Y-%m-%d") }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-row-group">
+                            <form method="POST" action="{{ url_for('reinstate_employee', employee_id=e.employee_id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm-custom" style="background: #4a5568; color: white;"
+                                        onclick="return confirm('確定將該員工復職嗎？')">復職</button>
+                            </form>
+
+                            <form method="POST" action="{{ url_for('hide_employee', employee_id=e.employee_id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm-custom" style="background: #c53030; color: white;"
+                                        onclick="return confirm('確定刪除此歷史紀錄嗎？')">刪除</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // 實時搜尋過濾功能
+    document.getElementById("searchInput").oninput = function() {
+        let val = this.value.toLowerCase().trim();
+        document.querySelectorAll(".salary-table tbody tr").forEach(row => {
+            row.style.display = row.innerText.toLowerCase().includes(val) ? "" : "none";
+        });
+    };
+</script>
+{% endblock %}
