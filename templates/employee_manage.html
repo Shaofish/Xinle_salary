@@ -185,7 +185,7 @@
                                 <button type="submit" class="btn btn-sm-custom" style="background: #4a5568; color: white;"
                                         onclick="return confirm('確定將該員工復職嗎？')">復職</button>
                             </form>
-
+                            <a href="{{ url_for('edit_log_profile', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
                             <form method="POST" action="{{ url_for('hide_employee', employee_id=e.employee_id) }}" style="display: inline;">
                                 <button type="submit" class="btn btn-sm-custom" style="background: #c53030; color: white;"
                                         onclick="return confirm('確定刪除此歷史紀錄嗎？')">刪除</button>

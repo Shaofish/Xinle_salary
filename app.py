@@ -37,12 +37,46 @@ def login_required(f):
 
 # ====== 自定義函數 ======
 def get_all_available_months(employee_id):
-    # 改為產生前後 10 年的清單，而不只是最近 12 個月
-    this_year = datetime.today().year
+    cursor = mysql.connection.cursor()
+    try:
+        cursor.execute("SELECT `employee_onboard` FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
+        result = cursor.fetchone()
+    finally:
+        cursor.close()
+
+    # 2. 設定起始日期 (Start Date)
+    if result and result['employee_onboard']:
+        # 確保格式為 date 物件 (有些資料庫驅動回傳的是 datetime)
+        onboard_date = result['employee_onboard']
+        if isinstance(onboard_date, datetime):
+            onboard_date = onboard_date.date()
+        
+        # 將起始日設為該月的 1 號 (方便後續迴圈計算)
+        start_date = onboard_date.replace(day=1)
+    else:
+        # 防呆：如果找不到入職日，預設從今天開始
+        start_date = date.today().replace(day=1)
+
+    # 3. 設定結束日期 (End Date) = 當前時間往後一年
+    today = date.today()
+    target_date = today + relativedelta(years=1)
+    # 同樣設為該月 1 號以進行比較
+    end_date = target_date.replace(day=1)
+
+    # 4. 生成月份列表
     all_months = []
-    for y in range(this_year - 10, this_year + 11):
-        for m in range(1, 13):
-            all_months.append(int(f"{y}{m:02d}"))
+    current_date = start_date
+
+    # 迴圈：只要 當前日期 <= 結束日期，就加入列表
+    while current_date <= end_date:
+        # 轉成 YYYYMM 格式 (int)
+        month_int = int(current_date.strftime("%Y%m"))
+        all_months.append(month_int)
+        
+        # 往後推一個月
+        current_date += relativedelta(months=1)
+
+    # 5. 回傳 (反序排列：最新的月份在上面)
     return sorted(all_months, reverse=True)
 
 
@@ -960,39 +994,59 @@ def preview_salary(employee_id):
     cursor.close()
     return render_template('preview_salary.html', employee_id=employee_id,employee_name=employee_name, salaries=salaries)
 
-# ====== 新增薪資單 - 選擇月份頁面 (徹底修正版) ======
+# ====== 新增薪資單 - 選擇月份頁面 ======
 @app.route('/add_select_month/<employee_id>', methods=['GET', 'POST'])
 @login_required
 def add_select_month(employee_id):
     cur = mysql.connection.cursor()
-    cur.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    cur.execute("SELECT employee_name, employee_onboard FROM employee_info WHERE employee_id = %s", (employee_id,))
     employee = cur.fetchone()
     cur.close()
 
     if not employee:
         flash("找不到該員工資料", "danger")
         return redirect(url_for('employee_list'))
+    
+    # 1. 設定起始日 (Start Date) = 入職日
+    onboard_date = employee.get('employee_onboard')
+    if onboard_date:
+        if isinstance(onboard_date, datetime):
+            onboard_date = onboard_date.date()
+        start_date = onboard_date.replace(day=1)
+    else:
+        # 如果沒入職日，預設從今年 1/1 開始
+        start_date = date.today().replace(month=1, day=1)
 
-    # ✨ 強制定義前後 10 年
-    this_year = datetime.today().year
-    start_year = this_year - 10
-    end_year = this_year + 10
-    
-    # 產生年份列表 (數字型態供前端渲染用)
-    years_list = sorted(list(range(start_year, end_year + 1)), reverse=True)
-    
-    # ✨ 關鍵修正：字典的 Key 必須強制轉為字串 "str(y)"
-    # 這樣傳給前端時 JavaScript 才能正確讀取到字典內容
+    # 2. 設定結束日 (End Date) = 今天往後推一年
+    today = date.today()
+    target_date = today + relativedelta(years=1)
+    end_date = target_date.replace(day=1)
+
+    # 3. 生成結構化資料
     available_months_by_year = {}
-    full_months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    for y in years_list:
-        available_months_by_year[str(y)] = full_months
+    
+    current_date = start_date
+    while current_date <= end_date:
+        y_str = str(current_date.year)
+        m_int = current_date.month
+        
+        if y_str not in available_months_by_year:
+            available_months_by_year[y_str] = []
+        
+        available_months_by_year[y_str].append(m_int) 
+        # 往後推一個月
+        current_date += relativedelta(months=1)
+
+    # 4. 產生年份列表 (從大到小排序，例如 [2027, 2026, 2025...])
+    # 這裡轉成 int 是為了配合前端 select 迴圈
+    years_list = sorted([int(y) for y in available_months_by_year.keys()], reverse=True)
 
     if request.method == 'POST':
         selected_year = request.form.get('year')
         selected_month = request.form.get('month')
         if selected_year and selected_month:
             year_month = f"{selected_year}{int(selected_month):02d}"
+            # 重導向到編輯頁面
             return redirect(url_for('edit_salary_tabs', employee_id=employee_id, year_month=year_month, action='add'))
 
     return render_template('select_month.html',
@@ -1001,9 +1055,9 @@ def add_select_month(employee_id):
                            employee_id=employee_id,
                            employee_name=employee['employee_name'],
                            years=years_list,
-                           available_months_by_year=available_months_by_year,
-                           default_year=this_year,
-                           default_month=datetime.today().month)
+                           available_months_by_year=available_months_by_year, # 這會傳遞動態生成的範圍
+                           default_year=today.year,
+                           default_month=today.month)
 
 # ====== 編輯薪資單 - 選擇月份頁面 ======
 @app.route('/edit_select_month/<employee_id>', methods=['GET', 'POST'])
