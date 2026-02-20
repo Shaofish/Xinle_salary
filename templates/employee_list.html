@@ -2,143 +2,199 @@
 
 {% block content %}
 <style>
-    /* 強化表格外框與對齊 */
+    /* 1. 頁頭管理盒：專業漸層與陰影 */
+    .manage-header-box {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        background: #ffffff;
+        padding: 25px;
+        border-radius: 15px;
+        border: 2px solid #cbd5e0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    /* 2. 大按鈕樣式：長輩友善尺寸 */
+    .btn-add-large {
+        color: white;
+        padding: 15px 35px !important;
+        font-size: 24px !important;
+        border-radius: 12px;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+    .btn-add-large:hover {
+        transform: translateY(-2px);
+        color: white;
+        filter: brightness(1.1); /* 讓深色按鈕 hover 時稍微變亮 */
+    }
+
+    /* 3. 表格核心樣式：加強外框與格線 */
     .salary-table {
         width: 100%;
         border-collapse: collapse;
-        margin: 20px 0;
-        border: 3px solid #2d3748;
+        margin: 0;
+        border: 3px solid #2d3748; /* 加深外框 */
         background-color: white;
         table-layout: auto;
     }
 
-    .salary-table th, .salary-table td {
-        border: 2px solid #2d3748;
-        padding: 12px 8px;
-        text-align: center;
-        vertical-align: middle;
-        white-space: nowrap; /* 強制不換行 */
-    }
-
     .salary-table th {
         background-color: #edf2f7;
-        font-size: 22px;
         color: #1a365d;
+        font-weight: 900;
+        font-size: 22px;
+        padding: 15px;
+        border: 2px solid #2d3748;
+        text-align: center;
     }
 
-    /* 狀態標籤樣式 */
-    .status-badge {
-        padding: 5px 15px;
-        border-radius: 50px;
-        font-size: 18px;
-        font-weight: bold;
+    .salary-table td {
+        padding: 15px 10px;
+        border: 2px solid #2d3748;
+        font-size: 22px;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap; /* 防止按鈕與文字換行 */
     }
-    .status-active { background: #c6f6d5; color: #22543d; }
-    .status-resigned { background: #fed7d7; color: #822727; }
 
-    /* 按鈕群組：確保單行顯示 */
+    /* 4. 水平按鈕群組：確保功能不重疊 */
     .btn-row-group {
         display: flex;
         justify-content: center;
-        gap: 5px;
+        align-items: center;
+        gap: 10px; /* 按鈕間距 */
     }
 
     .btn-sm-custom {
-        padding: 8px 12px !important;
-        font-size: 19px !important;
+        padding: 10px 18px !important;
+        font-size: 20px !important;
+        font-weight: bold;
         border-radius: 8px;
-        min-width: 85px;
+        white-space: nowrap;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
     }
 
-    .search-container {
-        background: #f1f5f9;
-        padding: 25px;
+    /* 5. 離職資訊樣式 */
+    .resign-info {
+        display: block;
+        font-size: 18px;
+        color: #c53030;
+        margin-top: 5px;
+        font-weight: bold;
+    }
+
+    /* 6. 卡片包裝盒：商用質感 */
+    .manage-card {
         border-radius: 15px;
-        border: 2px solid #cbd5e0;
-        margin-bottom: 30px;
+        overflow: hidden;
+        border: 3px solid #2d3748;
+        margin-bottom: 50px;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    }
+    .card-header-custom {
+        background: #2d3748;
+        color: white;
+        padding: 15px 25px;
+        font-size: 24px;
+        font-weight: bold;
     }
 </style>
 
 <h1><i class="fa-solid fa-calculator"></i> 薪資作業中心</h1>
 
-<div class="mb-4 d-flex gap-3">
-    <a href="{{ url_for('user') }}" class="btn btn-secondary">
+<div class="manage-header-box">
+    <a href="{{ url_for('user') }}" class="btn btn-secondary" style="font-size: 20px;">
         <i class="fa-solid fa-arrow-left"></i> 返回主頁
     </a>
-    <a href="{{ url_for('export_excel_select') }}" class="btn btn-primary" style="background-color: #1a365d;">
+    <a href="{{ url_for('export_excel_select') }}" class="btn btn-add-large" style="background-color: #1a365d;">
         <i class="fa-solid fa-file-excel"></i> 批次匯出薪資總表
     </a>
 </div>
 
-<div class="search-container">
-    <input type="text" id="searchInput" placeholder="🔍 請輸入員工編號或姓名進行搜尋..." 
-           style="margin-bottom: 0; font-size: 26px; padding: 15px; width: 100%;">
+<div class="search-container" style="background: #f1f5f9; padding: 25px; border-radius: 15px; border: 2px solid #cbd5e0; margin-bottom: 30px;">
+    <input type="text" id="searchInput" placeholder="🔍 點擊此處輸入員工編號或姓名進行搜尋..." 
+           style="width: 100%; font-size: 26px; padding: 15px; margin: 0; border-radius: 10px; border: 2px solid #cbd5e0;">
 </div>
 
-<div class="table-container" style="overflow-x: auto;"> 
-    <h3><span class="status-badge status-active">● 在職中</span></h3>
-    <table class="salary-table">
-        <thead>
-            <tr>
-                <th>編號</th>
-                <th>姓名</th>
-                <th>功能操作區</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for e in employees %}
-            <tr>
-                <td class="bold">{{ e.employee_id }}</td>
-                <td class="bold" style="font-size: 24px;">{{ e.employee_name }}</td>
-                <td>
-                    <div class="btn-row-group">
-                        <a href="{{ url_for('preview_salary', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2f855a; color: white;">預覽</a>
-                        <a href="{{ url_for('add_select_month', employee_id=e.employee_id, action='new') }}" class="btn btn-sm-custom" style="background: #3182ce; color: white;">新增</a>
-                        <a href="{{ url_for('edit_select_month', employee_id=e.employee_id, action='edit') }}" class="btn btn-sm-custom" style="background: #2b6cb0; color: white;">編輯</a>
-                        <a href="{{ url_for('export_pdf_select', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #1a202c; color: white;">PDF</a>
-                        <a href="{{ url_for('export_excel', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2c5282; color: white;">Excel</a>
-                        <a href="{{ url_for('edit_log_salary', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="manage-card">
+    <div class="card-header-custom">
+        <i class="fa-solid fa-user-check"></i> 在職員工薪資作業
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="salary-table">
+            <thead>
+                <tr>
+                    <th style="width: 18%;">編號</th>
+                    <th style="width: 20%;">姓名</th>
+                    <th style="width: 62%;">功能操作區 (水平排列)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in employees %}
+                <tr>
+                    <td class="bold">{{ e.employee_id }}</td>
+                    <td class="bold" style="font-size: 26px;">{{ e.employee_name }}</td>
+                    <td>
+                        <div class="btn-row-group">
+                            <a href="{{ url_for('preview_salary', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2f855a; color: white;">預覽</a>
+                            <a href="{{ url_for('add_select_month', employee_id=e.employee_id, action='new') }}" class="btn btn-sm-custom" style="background: #3182ce; color: white;">新增</a>
+                            <a href="{{ url_for('edit_select_month', employee_id=e.employee_id, action='edit') }}" class="btn btn-sm-custom" style="background: #2b6cb0; color: white;">編輯</a>
+                            <a href="{{ url_for('export_pdf_select', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #1a202c; color: white;">PDF</a>
+                            <a href="{{ url_for('export_excel', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2c5282; color: white;">Excel</a>
+                            <a href="{{ url_for('edit_log_salary', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<div class="table-container mt-5" style="overflow-x: auto;"> 
-    <h3><span class="status-badge status-resigned">● 已離職 (提供歷史紀錄查看)</span></h3>
-    <table class="salary-table">
-        <thead>
-            <tr>
-                <th>編號</th>
-                <th>姓名</th>
-                <th>歷史資料操作</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for e in resigned_employees %}
-            <tr>
-                <td class="bold">{{ e.employee_id }}</td>
-                <td class="bold" style="font-size: 24px;">
-                    {{ e.employee_name }}
-                    <br><small style="color: #822727; font-size: 16px;">(離職日: {{ e.resign_date }})</small>
-                </td>
-                <td>
-                    <div class="btn-row-group">
-                        <a href="{{ url_for('preview_salary', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2f855a; color: white;">預覽</a>
-                        <a href="{{ url_for('export_pdf_select', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #1a202c; color: white;">PDF</a>
-                        <a href="{{ url_for('export_excel', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2c5282; color: white;">Excel</a>
-                        <a href="{{ url_for('edit_log_salary', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="manage-card" style="border-color: #718096;">
+    <div class="card-header-custom" style="background: #718096;">
+        <i class="fa-solid fa-user-slash"></i> 已離職 (歷史薪資查看)
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="salary-table">
+            <thead>
+                <tr>
+                    <th style="width: 18%;">編號</th>
+                    <th style="width: 20%;">姓名</th>
+                    <th style="width: 62%;">歷史資料操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in resigned_employees %}
+                <tr>
+                    <td class="bold">{{ e.employee_id }}</td>
+                    <td>
+                        <span class="bold" style="font-size: 26px;">{{ e.employee_name }}</span>
+                        {% if e.resign_date %}
+                        <span class="resign-info">離職日：{{ e.resign_date.strftime("%Y-%m-%d") }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-row-group">
+                            <a href="{{ url_for('preview_salary', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2f855a; color: white;">預覽</a>
+                            <a href="{{ url_for('export_pdf_select', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #1a202c; color: white;">PDF</a>
+                            <a href="{{ url_for('export_excel', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2c5282; color: white;">Excel</a>
+                            <a href="{{ url_for('edit_log_salary', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
+    // 實時搜尋過濾功能
     document.getElementById("searchInput").oninput = function() {
         let val = this.value.toLowerCase().trim();
         document.querySelectorAll(".salary-table tbody tr").forEach(row => {

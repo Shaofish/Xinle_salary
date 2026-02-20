@@ -189,7 +189,9 @@
         <div class="mb-5">
             <label class="form-label">每年特休發放月份</label>
             <select name="leave_payment_month_of_year" class="form-select">
-                <option value="">-- 請選擇月份 --</option>
+                <option value="" {% if not employee.leave_payment_month_of_year %}selected{% endif %}>
+                    -- 請選擇月份 (若不選擇將預設為 1 月) --
+                </option>
                 {% for m in range(1, 13) %}
                 <option value="{{ m }}" {% if employee.leave_payment_month_of_year == m %}selected{% endif %}>
                     每年 {{ m }} 月

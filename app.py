@@ -19,7 +19,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '410770167'
+app.config['MYSQL_PASSWORD'] = 'gtololol01314'
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -406,9 +406,6 @@ def add_employee():
 def edit_profile(employee_id):
     import MySQLdb.cursors
     
-    # 建立 DB 連線
-    # 建議：放在 try block 外部或確保連線存在
-    
     if request.method == 'POST':
         # 1. 安全接收資料 (使用 .get 避免 KeyError)
         new_employee_id = request.form.get('employee_id')
@@ -430,7 +427,11 @@ def edit_profile(employee_id):
         subsidy_half = safe_int(request.form.get('subsidy_half'))
         subsidy_full = safe_int(request.form.get('subsidy_full'))
         
-        leave_payment_month_of_year = request.form.get('leave_payment_month_of_year')
+        leave_month_input = request.form.get('leave_payment_month_of_year')
+        if not leave_month_input or leave_month_input.strip() == "":
+            leave_payment_month_of_year = 1  # 預設為 1 月
+        else:
+            leave_payment_month_of_year = int(leave_month_input)
 
         # 使用 with 語法自動管理 cursor 關閉
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -486,8 +487,19 @@ def edit_profile(employee_id):
             # 5. Log 紀錄
             changed = {}
             compare_fields = {
-                'employee_id': new_employee_id, 'employee_name': employee_name, 
-                'employee_birth': employee_birth, 'employee_card': employee_card
+                'employee_id': new_employee_id, 
+                'employee_name': employee_name, 
+                'employee_birth': employee_birth, 
+                'employee_card': employee_card,
+                'employee_onboard': employee_onboard,
+                'qualification': qualification,
+                'subsidy': subsidy,
+                'subsidy_none': subsidy_none,
+                'subsidy_half': subsidy_half,
+                'subsidy_full': subsidy_full,
+                'leave_payment_month_of_year': leave_payment_month_of_year,
+                'labor_insurance_grade': labor_grade,
+                'health_insurance_grade': health_grade
             }
             
             # 特別處理：比對 ID 時，原始資料要拿 'employee_id'，新資料是 new_employee_id
@@ -631,8 +643,8 @@ def reinstate_employee(employee_id):
     
     mysql.connection.commit()
     cursor.close()
-    flash("員工已成功復職", "success")
-    return redirect(url_for('employee_manage'))
+    flash("該員工已成功復職，請修改該員工的到職日期以及其他個人資料", "success")
+    return redirect(url_for('edit_profile', employee_id=employee_id))
 
 # ====== 編輯員工基本資料 ======
 @app.route('/edit_salary_tabs/<employee_id>', methods=['GET', 'POST'])
