@@ -212,6 +212,14 @@
                 <label class="form-label">其他支付金額：</label>
                 <input name="extras_amout" value="{{ salary.extras_amout }}" class="form-control numeric-input">
             </div>
+            <div class="col-md-6">
+                <label class="form-label">其他支付項目名稱(2)：</label>
+                <input name="extras2" value="{{ salary.extras2 }}" class="form-control" placeholder="例如：補發上月薪資">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">其他支付金額(2)：</label>
+                <input name="extras2_amount" value="{{ salary.extras2_amount }}" class="form-control numeric-input">
+            </div>
           </div>
       </div>
       <input type="hidden" id="total_hours" name="total_hours" value="{{ salary.total_hr }}">
@@ -275,6 +283,14 @@
                 <label class="form-label">額外代扣金額：</label>
                 <input type="number" name="additional_withholding_amout" value="{{ salary.additional_withholding_amout }}" class="form-control">
             </div>
+            <div class="col-md-6">
+                <label class="form-label">額外代扣項目名稱(2)：</label>
+                <input type="text" name="additional_withholding2_items" value="{{ salary.additional_withholding2_items }}" class="form-control" placeholder="例如：代購物品、罰單">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">額外代扣金額(2)：</label>
+                <input type="number" name="additional_withholding2_amount" value="{{ salary.additional_withholding2_amount }}" class="form-control">
+            </div>
           </div>
       </div>
 
@@ -284,6 +300,7 @@
       <input type="hidden" id="employee_subsidy_half" value="{{ info.subsidy_half }}">
       <input type="hidden" id="employee_subsidy_full" value="{{ info.subsidy_full }}">
     </div>
+    
 
     <div class="my-5 p-4 bg-white border-top shadow-sm sticky-bottom">
         <button type="submit" class="btn btn-success btn-save">

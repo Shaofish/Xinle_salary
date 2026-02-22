@@ -19,7 +19,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '410770167'
+app.config['MYSQL_PASSWORD'] = 'gtololol01314'
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -265,6 +265,8 @@ column_mapping = {
     'teaching_subsidy': '教學補助費',
     'extras': '其他項目',
     'extras_amout': '其他金額',
+    'extras2': '其他項目(2)',
+    'extras2_amount': '其他金額(2)',
     #應代扣項目
     'total_payment_insure_grade': '勞保級距',
     'health_insure_grade': '健保級距',
@@ -280,6 +282,8 @@ column_mapping = {
     'group_accident_insurance': '團險',
     'additional_withholding_items': '額外代扣項目',
     'additional_withholding_amout': '額外代扣金額',
+    'additional_withholding2_items': '額外代扣項目(2)',
+    'additional_withholding2_amount': '額外代扣金額(2)',
 }
 # ====== 中文對應（操作類型）======
 action_mapping = {
@@ -666,12 +670,12 @@ def edit_salary_tabs(employee_id):
         ],
         'bonus': [
             'licence_allowance', 'holiday_bonus', 'birthday_bonus', 'referral_fee', 'travel_allowance', 'check_up',
-            'training_fee', 'teaching_subsidy', 'extras', 'extras_amout'
+            'training_fee', 'teaching_subsidy', 'extras', 'extras_amout','extras2','extras2_amount'
         ],
         'insurance': [
             'total_payment_insure_grade', 'health_insure_grade', 'Labor_premiums', 'Insurance_amount', 'retirement_plan_withdraw',
             'home_caregiver_insurance', 'group_accident_insurance', 'additional_withholding_items', 'additional_withholding_amout',
-            'company_labor', 'company_occu', 'company_health', 'company_retire', 'company_total'
+            'company_labor', 'company_occu', 'company_health', 'company_retire', 'company_total','additional_withholding2_items', 'additional_withholding2_amount'
         ]
     }
 
@@ -1215,10 +1219,10 @@ def export_excel(employee_id):
             s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
             s.`AA09_bonus`, s.`Salary_subtotal`, s.`Inter_district_subsidie`,s.`leave_pay_days`, s.`leave_deduction_amount`, 
             s.`ultimate_salary`, s.`BGA_view`,s.`licence_allowance`, s.`holiday_bonus`, s.`birthday_bonus`,s.`referral_fee`, 
-            s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`, s.`extras`, s.`extras_amout`,
+            s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
             s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
-            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`, s.`payroll_due`,s.`paid_in_salary`, 
-            s.`tenth_salary`, s.`thirtieth_salary`
+            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
+            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`
         FROM employee_salary s
         JOIN employee_info i ON s.employee_id = i.employee_id
         WHERE s.employee_id = %s
@@ -1331,10 +1335,10 @@ def export_excel_by_month(year_month):
             s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
             s.`AA09_bonus`, s.`Salary_subtotal`, s.`Inter_district_subsidie`,s.`leave_pay_days`, s.`leave_deduction_amount`, 
             s.`ultimate_salary`, s.`BGA_view`,s.`licence_allowance`, s.`holiday_bonus`, s.`birthday_bonus`,s.`referral_fee`, 
-            s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`, s.`extras`, s.`extras_amout`,
+            s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
             s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
-            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`, s.`payroll_due`,s.`paid_in_salary`, 
-            s.`tenth_salary`, s.`thirtieth_salary`
+            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
+            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`
         FROM employee_salary s
         JOIN employee_info i ON s.employee_id = i.employee_id
         WHERE s.year_month = %s
