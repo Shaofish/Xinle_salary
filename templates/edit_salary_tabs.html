@@ -194,7 +194,7 @@
       </div>
 
       <div class="row">
-          {% for f,label in [('licence_allowance','單一證照津貼'),('holiday_bonus','三節節慶獎金'),('birthday_bonus','生日祝賀禮金'),('referral_fee','員工介紹費'),('travel_allowance','員工旅遊津貼'),('training_fee','教育訓練補助'),('teaching_subsidy','教學指導補助')] %}
+          {% for f,label in [('licence_allowance','單一證照津貼'),('holiday_bonus','三節節慶獎金'),('birthday_bonus','生日祝賀禮金'),('referral_fee','員工介紹費'),('travel_allowance','員工旅遊津貼'),('training_fee','教育訓練補助'),('teaching_subsidy','教學指導補助'),('new_case_allowance','新案補助費')] %}
           <div class="col-md-4 field-group">
               <label class="form-label">{{label}}：</label>
               <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input {% if f == 'birthday_bonus' %}readonly-field{% endif %}" {% if f == 'birthday_bonus' %}readonly{% endif %}>
