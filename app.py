@@ -13,6 +13,7 @@ from functools import wraps
 import json
 from dateutil.relativedelta import relativedelta
 from urllib.parse import quote
+import numpy as np
 
 app = Flask(__name__)
 
@@ -1634,8 +1635,6 @@ def edit_log_profile(employee_id):
     cursor.close()
     return render_template('edit_log_profile.html', logs=logs, employee_id=employee_id, employee_name=employee_name)
 
-
-
 # 1. 顯示匯入頁面 (提供範本下載連結)
 @app.route('/import_history_select')
 @login_required
@@ -1644,7 +1643,7 @@ def import_history_select():
 
 # 2. 處理 Excel 匯入
 @app.route('/import_history_process', methods=['POST'])
-@login_required # 確保已加上登入限制
+@login_required
 def import_history_process():
     if 'file' not in request.files:
         flash('未選擇檔案', 'danger')
@@ -1660,32 +1659,40 @@ def import_history_process():
         df = pd.read_excel(file)
         
         # 將中文標題轉回資料庫英文欄位名
-        # 使用您定義好的 column_mapping 進行反向映射
         reverse_mapping = {v: k for k, v in column_mapping.items()}
         df.rename(columns=reverse_mapping, inplace=True)
 
+        # 這樣才能強制 SQL 語句包含所有欄位，進而觸發 Trigger
+        df = df.replace({np.nan: 0}) 
+
         cur = mysql.connection.cursor()
         
-        # ✨ 關鍵步驟：獲取資料庫 employee_salary 真正存在的欄位清單
+        # 獲取資料庫 employee_salary 真正存在的欄位清單
+        # 支援不同的 cursor 格式 (DictCursor 或 Tuple)
         cur.execute("DESCRIBE `employee_salary`")
-        db_columns = [row['Field'] for row in cur.fetchall()]
+        desc_result = cur.fetchall()
+        if desc_result and isinstance(desc_result[0], dict):
+            db_columns = [row['Field'] for row in desc_result]
+        else:
+            db_columns = [row[0] for row in desc_result]
         
         success_count = 0
         skip_count = 0
         
         for index, row in df.iterrows():
+            employee_id = row.get('employee_id')
+            
             # 確保員工編號存在於系統中
-            cur.execute("SELECT employee_id FROM employee_info WHERE employee_id = %s", (row['employee_id'],))
+            cur.execute("SELECT employee_id FROM employee_info WHERE employee_id = %s", (employee_id,))
             if not cur.fetchone():
                 skip_count += 1
                 continue
             
-            # ✨ 自動過濾：只保留資料庫中有的欄位，並排除空值 (NaN)
-            # 這會自動過濾掉 'employee_birth', 'employee_name' 等薪資表沒有的欄位
-            import_data = {
-                k: v for k, v in row.to_dict().items() 
-                if k in db_columns and pd.notnull(v)
-            }
+            # 只保留資料庫中有的欄位，不再過濾空值
+            import_data = {}
+            for k, v in row.to_dict().items():
+                if k in db_columns:
+                    import_data[k] = v
             
             if not import_data:
                 continue
@@ -1695,7 +1702,7 @@ def import_history_process():
             placeholders = ', '.join(['%s'] * len(fields))
             columns = ', '.join([f'`{f}`' for f in fields])
             
-            # 使用 ON DUPLICATE KEY UPDATE 防止重複匯入報錯，改為更新數據
+            # 使用 ON DUPLICATE KEY UPDATE
             update_clause = ', '.join([f'`{f}` = VALUES(`{f}`)' for f in fields])
             sql = f"""
                 INSERT INTO `employee_salary` ({columns}) 
@@ -1703,18 +1710,20 @@ def import_history_process():
                 ON DUPLICATE KEY UPDATE {update_clause}
             """
             
+            # 確保轉換為 tuple 供 execute 使用
             cur.execute(sql, tuple(import_data.values()))
             success_count += 1
         
         mysql.connection.commit()
         cur.close()
         
-        msg = f'成功匯入 {success_count} 筆薪資歷史資料。'
+        msg = f'成功匯入 {success_count} 筆薪資歷史資料。系統已自動執行相關計算。'
         if skip_count > 0:
             msg += f'（跳過 {skip_count} 筆不存在的員工編號）'
         flash(msg, 'success')
         
     except Exception as e:
+        mysql.connection.rollback()
         flash(f'匯入失敗，原因：{str(e)}', 'danger')
 
     return redirect(url_for('user'))
