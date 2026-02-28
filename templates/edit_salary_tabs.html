@@ -99,7 +99,6 @@
             ('holiday_work_hr','假日總時數','16'),
             ('transition_hr','轉場總時數','5'),
             ('transition_allowance','轉場總津貼','1000'),
-            ('Inter_district_subsidie','跨區補貼','金額'),
             ('Overtime_pay_weekdays910hr','平日加班(9-10)','時數'),
             ('Overtime_pay_weekdays1112hr','平日加班(11-12)','時數'),
             ('total_overtime_pay_weekdays','平日總加班費','金額'),
@@ -110,6 +109,7 @@
             ('total_pay_holidays','例假日加班費','金額'),
             ('National_holidays_hr','國定假日時數','時數'),
             ('total_pay_national_holidays','國定假日加班費','金額'),
+            ('Inter_district_subsidie','跨區補貼','金額'),
             ('duty_allowance','職務/行政津貼','金額')
           ] %}
           <div class="col-md-4 field-group">
@@ -194,7 +194,7 @@
       </div>
 
       <div class="row">
-          {% for f,label in [('licence_allowance','單一證照津貼'),('holiday_bonus','三節節慶獎金'),('birthday_bonus','生日祝賀禮金'),('referral_fee','員工介紹費'),('travel_allowance','員工旅遊津貼'),('training_fee','教育訓練補助'),('teaching_subsidy','教學指導補助'),('new_case_allowance','新案補助費')] %}
+          {% for f,label in [('licence_allowance','單一證照津貼'),('holiday_bonus','三節節慶獎金'),('birthday_bonus','生日祝賀禮金'),('referral_fee','員工介紹費'),('travel_allowance','員工旅遊津貼'),('training_fee','教育訓練補助'),('teaching_subsidy','教學指導補助')] %}
           <div class="col-md-4 field-group">
               <label class="form-label">{{label}}：</label>
               <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input {% if f == 'birthday_bonus' %}readonly-field{% endif %}" {% if f == 'birthday_bonus' %}readonly{% endif %}>
@@ -211,14 +211,6 @@
             <div class="col-md-6">
                 <label class="form-label">其他支付金額：</label>
                 <input name="extras_amout" value="{{ salary.extras_amout }}" class="form-control numeric-input">
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">其他支付項目名稱(2)：</label>
-                <input name="extras2" value="{{ salary.extras2 }}" class="form-control" placeholder="例如：補發上月薪資">
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">其他支付金額(2)：</label>
-                <input name="extras2_amount" value="{{ salary.extras2_amount }}" class="form-control numeric-input">
             </div>
           </div>
       </div>
@@ -283,14 +275,6 @@
                 <label class="form-label">額外代扣金額：</label>
                 <input type="number" name="additional_withholding_amout" value="{{ salary.additional_withholding_amout }}" class="form-control">
             </div>
-            <div class="col-md-6">
-                <label class="form-label">額外代扣項目名稱(2)：</label>
-                <input type="text" name="additional_withholding2_items" value="{{ salary.additional_withholding2_items }}" class="form-control" placeholder="例如：代購物品、罰單">
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">額外代扣金額(2)：</label>
-                <input type="number" name="additional_withholding2_amount" value="{{ salary.additional_withholding2_amount }}" class="form-control">
-            </div>
           </div>
       </div>
 
@@ -300,7 +284,6 @@
       <input type="hidden" id="employee_subsidy_half" value="{{ info.subsidy_half }}">
       <input type="hidden" id="employee_subsidy_full" value="{{ info.subsidy_full }}">
     </div>
-    
 
     <div class="my-5 p-4 bg-white border-top shadow-sm sticky-bottom">
         <button type="submit" class="btn btn-success btn-save">
@@ -313,55 +296,72 @@
   <script>
     // --- 頁籤切換邏輯 ---
     function showTab(btn, tabName) {
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.querySelectorAll('.nav-link-custom').forEach(n => n.classList.remove('active'));
-      
-      document.getElementById(tabName).classList.add('active');
-      btn.classList.add('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.nav-link-custom').forEach(n => n.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        btn.classList.add('active');
     }
 
+    // ✨ 修正後的初始化邏輯 ✨
     window.onload = async function() {
-        await loadLaborInsuranceLevels();
-        await loadHealthInsuranceLevels();
+        // 1. 從 Jinja2 變數抓取選定的月份 (例如 "202601") 並提取前 4 位數作為年份
+        const selectedMonth = "{{ selected_month }}"; 
+        const currentYear = selectedMonth.toString().substring(0, 4);
+        
+        console.log("正在加載年份級距：" + currentYear);
+
+        // 2. 呼叫時務必傳入年份
+        await loadLaborInsuranceLevels(currentYear);
+        await loadHealthInsuranceLevels(currentYear);
+        
         attachCheckupAutoFill();
         calculateTotalHours();
-        // ✨ 新增：頁面載入時，強制執行一次拆帳計算
         calculateSplit(); 
-
-        // ✨ 新增：因為拆帳金額變了，績效獎金也要重算 (確保 calcPerformanceBonus 已定義)
-        if (window.calcPerformanceBonus) {
-            window.calcPerformanceBonus();
-        }
+        if (window.calcPerformanceBonus) window.calcPerformanceBonus();
     };
-    // --- 獨立出來的拆帳計算函式 ---
-    function calculateSplit() {
-        const cap = document.getElementById("capacity_amount");
-        const spl = document.getElementById("split_amount");
-        if (cap && spl) {
-            // 如果產能金額有值，就計算 60%；如果是空的就歸零
-            const capVal = safeFloat("capacity_amount");
-            spl.value = Math.round(capVal * 0.6);
-        }
-    }
 
-    // --- 勞保級距邏輯 (保持原有功能) ---
-    async function loadLaborInsuranceLevels() {
-      const select = document.getElementById('insuranceRange');
-      const savedGrade = document.getElementById('total_payment_insure_grade').value;
-      try {
-        const res = await fetch('/get_labor_insurance_levels');
-        const levels = await res.json();
-        select.innerHTML = '<option value="">-- 點擊選擇級距 --</option>';
-        levels.forEach(l => {
-          const opt = document.createElement('option');
-          opt.value = JSON.stringify(l);
-          opt.textContent = l.range;
-          if (String(l.range) === String(savedGrade)) opt.selected = true;
-          select.appendChild(opt);
-        });
-        if (select.value) updateLaborInsurance(select.value);
-      } catch(e) { console.error(e); }
+    window.onload = async function() {
+    // 1. 從選定的月份抓取年份 (例如 "202601" -> 2026)
+    const selectedMonth = "{{ selected_month }}"; 
+    const currentYear = selectedMonth.substring(0, 4);
+
+    // 2. 呼叫帶有年份參數的載入函式
+    await loadLaborInsuranceLevels(currentYear);
+    await loadHealthInsuranceLevels(currentYear);
+    
+    attachCheckupAutoFill();
+    calculateTotalHours();
+    calculateSplit(); 
+    if (window.calcPerformanceBonus) window.calcPerformanceBonus();
+};
+
+    // --- 勞保級距邏輯 (新增 year 參數) ---
+    async function loadLaborInsuranceLevels(year) {
+        const select = document.getElementById('insuranceRange');
+        const savedGrade = document.getElementById('total_payment_insure_grade').value;
+        try {
+            // ✨ 指向帶有年份的 API 路徑
+            const res = await fetch(`/get_labor_insurance_levels/${year}`);
+            const levels = await res.json();
+            
+            if (levels.length === 0) {
+                select.innerHTML = '<option value="">(該年份無級距資料)</option>';
+                return;
+            }
+
+            select.innerHTML = '<option value="">-- 點擊選擇級距 --</option>';
+            levels.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = JSON.stringify(l);
+                opt.textContent = l.range;
+                if (String(l.range) === String(savedGrade)) opt.selected = true;
+                select.appendChild(opt);
+            });
+            if (select.value) updateLaborInsurance(select.value);
+        } catch(e) { 
+            console.error("勞保級距載入失敗:", e);
+            select.innerHTML = '<option value="">級距載入失敗</option>';
+        }
     }
 
     function updateLaborInsurance(json) {
@@ -374,23 +374,33 @@
       document.getElementById('company_retire').value = l.company_retire;
     }
 
-    // --- 健保級距邏輯 (保持原有功能) ---
-    async function loadHealthInsuranceLevels() {
-      const select = document.getElementById('healthInsuranceRange');
-      const savedGrade = document.getElementById('health_insure_grade').value;
-      try {
-        const res = await fetch('/get_health_insurance_levels');
-        const levels = await res.json();
-        select.innerHTML = '<option value="">-- 點擊選擇級距 --</option>';
-        levels.forEach(l => {
-          const opt = document.createElement('option');
-          opt.value = JSON.stringify(l);
-          opt.textContent = l.Range;
-          if (String(l.Range) === String(savedGrade)) opt.selected = true;
-          select.appendChild(opt);
-        });
-        if (select.value) updateHealthInsurance(select.value);
-      } catch(e) { console.error(e); }
+    // --- 健保級距邏輯 (新增 year 參數) ---
+    async function loadHealthInsuranceLevels(year) {
+        const select = document.getElementById('healthInsuranceRange');
+        const savedGrade = document.getElementById('health_insure_grade').value;
+        try {
+            // ✨ 指向帶有年份的 API 路徑
+            const res = await fetch(`/get_health_insurance_levels/${year}`);
+            const levels = await res.json();
+
+            if (levels.length === 0) {
+                select.innerHTML = '<option value="">(該年份無級距資料)</option>';
+                return;
+            }
+
+            select.innerHTML = '<option value="">-- 點擊選擇級距 --</option>';
+            levels.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = JSON.stringify(l);
+                opt.textContent = l.Range;
+                if (String(l.Range) === String(savedGrade)) opt.selected = true;
+                select.appendChild(opt);
+            });
+            if (select.value) updateHealthInsurance(select.value);
+        } catch(e) { 
+            console.error("健保級距載入失敗:", e);
+            select.innerHTML = '<option value="">級距載入失敗</option>';
+        }
     }
 
     function updateHealthInsurance(json) {
@@ -456,10 +466,11 @@
     document.addEventListener("DOMContentLoaded", function() {
       const cap = document.getElementById("capacity_amount");
       const spl = document.getElementById("split_amount");
-        cap.addEventListener("input", () => {
-            calculateSplit(); // 呼叫共用函式
-            window.calcPerformanceBonus();
-        });
+      cap.addEventListener("input", () => {
+        const calculatedValue = Math.round(cap.value * 0.6);
+        spl.value = calculatedValue; // 自動更新，但因為欄位沒鎖，使用者之後可以改
+        window.calcPerformanceBonus();
+    });
     spl.addEventListener("input", () => {
         window.calcPerformanceBonus();
     });
@@ -490,13 +501,6 @@
       ["leave_days","leave_taken_days","annual_total_hours","total_service_hours"].forEach(id => document.getElementById(id).addEventListener("input", recalcLeave));
     });
 
-    function safeFloat(selector) {
-        let el = document.getElementById(selector) || document.querySelector(`input[name='${selector}']`);
-        if (!el) return 0;
-        let val = parseFloat(el.value);
-        return isNaN(val) ? 0 : val; // 如果是 NaN 就回傳 0
-    }   
-    
     function validateForm() { return true; }
   </script>
 {% endblock %}

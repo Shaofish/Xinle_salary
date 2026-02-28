@@ -20,7 +20,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '410770357=='  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = '410770167'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -1398,11 +1398,18 @@ def hide_employee(employee_id):
     return redirect(url_for('employee_manage'))
 
 # ====== 勞保級距設定 ======
-@app.route('/get_labor_insurance_levels')
-def get_labor_insurance_levels():
+@app.route('/get_labor_insurance_levels/<int:year>')
+@login_required
+def get_labor_insurance_levels(year):
     cursor = mysql.connection.cursor()
-    cursor.execute("SELECT * FROM labor_insurance_level")
+    # 優先抓取指定年份，如果該年沒資料，則抓取最新的年份
+    cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (year,))
     levels = cursor.fetchall()
+    
+    if not levels: # 防呆：如果找不到該年份，抓最近的一年
+        cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = (SELECT MAX(effective_year) FROM labor_insurance_level) ORDER BY `range` ASC")
+        levels = cursor.fetchall()
+        
     cursor.close()
     return jsonify(levels)
 
@@ -1477,12 +1484,17 @@ def labor_insurance_level_manage():
     return render_template('labor_insurance_level_manage.html', levels=levels)
 
 # ====== 健保級距設定 ======
-@app.route('/get_health_insurance_levels')
+@app.route('/get_health_insurance_levels/<int:year>')
 @login_required
-def get_health_insurance_levels():
+def get_health_insurance_levels(year):
     cursor = mysql.connection.cursor()
-    cursor.execute("SELECT * FROM health_insurance_level")
+    cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (year,))
     levels = cursor.fetchall()
+    
+    if not levels: # 防呆
+        cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = (SELECT MAX(effective_year) FROM health_insurance_level) ORDER BY `Range` ASC")
+        levels = cursor.fetchall()
+        
     cursor.close()
     return jsonify(levels)
 
