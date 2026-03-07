@@ -1709,7 +1709,11 @@ def import_history_process():
             import_data = {}
             for k, v in row.to_dict().items():
                 if k in db_columns:
-                    import_data[k] = v
+            #    ✨ 關鍵：判斷是否為日期欄位或數字欄位，分別處理空值
+                    if pd.isnull(v):
+                        import_data[k] = 0 if 'hr' in k or 'bonus' in k or 'amout' in k else None
+                    else:
+                        import_data[k] = v
             
             if not import_data:
                 continue

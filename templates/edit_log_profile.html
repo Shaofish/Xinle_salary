@@ -14,7 +14,7 @@
     }
     .log-card:hover { transform: translateX(5px); }
 
-    /* 標頭背景色：根據類型區分 */
+    /* 標頭背景色 */
     .log-header {
         padding: 15px 25px;
         border-bottom: 2px solid #cbd5e0;
@@ -24,7 +24,7 @@
         background: #f8fafc;
     }
 
-    /* 🌟 特殊狀態樣式 */
+    /* 🌟 保留您原始的特殊狀態樣式 */
     .log-resign { border-color: #c53030 !important; } /* 離職：紅框 */
     .log-resign .log-header { background: #fff5f5; color: #c53030; }
     
@@ -42,6 +42,9 @@
         font-size: 20px;
     }
     .change-item:last-child { border-bottom: none; }
+    
+    /* ✨ 新增：甲方要求的級距變動高亮樣式 */
+    .highlight-grade { background: #fffaf0; border-left: 5px solid #d69e2e; padding-left: 15px; }
     
     .field-label { min-width: 180px; font-weight: bold; color: #4a5568; }
     .val-old { color: #718096; text-decoration: line-through; margin-right: 10px; }
@@ -81,7 +84,7 @@
         <div class="log-body">
             {% if log.changed_fields %}
                 {% for field, change in log.changed_fields.items() %}
-                <div class="change-item">
+                <div class="change-item {% if '級距' in field %}highlight-grade{% endif %}">
                     <div class="field-label">
                         <i class="fa-solid fa-caret-right me-2 opacity-50"></i>{{ field }}
                     </div>
@@ -99,11 +102,11 @@
             {% endif %}
         </div>
     </div>
-    {% else %}
-        <div class="text-center p-5 bg-white rounded shadow-sm border">
-            <i class="fa-solid fa-user-clock fa-4x text-muted mb-3"></i>
-            <p class="fs-4 text-muted">目前尚無個人資料異動紀錄。</p>
-        </div>
-    {% endfor %}
-</div>
+{% else %}
+    <div class="text-center p-5 bg-white rounded shadow-sm border">
+        <i class="fa-solid fa-user-clock fa-4x text-muted mb-3"></i>
+        <p class="fs-4 text-muted">目前尚無個人資料異動紀錄。</p>
+    </div>
+{% endfor %}
+
 {% endblock %}
