@@ -2,40 +2,22 @@
 {% block title %}勞保級距表管理{% endblock %}
 {% block content %}
 <style>
-    /* 工具列設計 */
     .admin-toolbar {
-        background: #edf2f7;
-        padding: 25px;
-        border-radius: 15px;
-        border: 2px solid #cbd5e0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
+        background: #edf2f7; padding: 25px; border-radius: 15px;
+        border: 2px solid #cbd5e0; display: flex;
+        justify-content: space-between; align-items: center; margin-bottom: 30px;
     }
-    
-    /* 專業報表表格 */
     .admin-table {
-        border: 3px solid #2d3748;
-        border-radius: 12px;
-        overflow: hidden;
-        width: 100%;
-        border-collapse: collapse;
+        border: 3px solid #2d3748; border-radius: 12px;
+        overflow: hidden; width: 100%; border-collapse: collapse;
     }
     .admin-table th {
-        background-color: #2d3748;
-        color: white;
-        font-size: 22px;
-        padding: 15px;
-        border: 1px solid #4a5568;
-        text-align: center;
+        background-color: #2d3748; color: white; font-size: 22px;
+        padding: 15px; border: 1px solid #4a5568; text-align: center;
     }
     .admin-table td {
-        font-size: 20px;
-        padding: 15px;
-        border: 1px solid #e2e8f0;
-        text-align: center;
-        background: white;
+        font-size: 20px; padding: 15px; border: 1px solid #e2e8f0;
+        text-align: center; background: white;
     }
     .admin-table tr:nth-child(even) td { background: #f8fafc; }
     .admin-table tr:hover td { background: #ebf4ff; }
@@ -60,6 +42,23 @@
     </div>
 </div>
 
+<div class="mb-4 d-flex align-items-center gap-3">
+    <span class="fw-bold fs-4">選擇顯示年份：</span>
+    <div class="btn-group shadow-sm">
+        {% for year in available_years %}
+        <a href="{{ url_for('labor_insurance_level_manage', year=year) }}" 
+           class="btn btn-lg {{ 'btn-primary active' if year == selected_year else 'btn-outline-primary' }}"
+           style="font-size: 20px; padding: 10px 25px;">
+            {{ year }} 年
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="alert alert-info py-2 fs-5 mb-4">
+    <i class="fa-solid fa-calendar-check me-2"></i> 目前正在查看：<strong>{{ selected_year }} 年</strong> 勞保級距表
+</div>
+
 <div class="table-container shadow-lg" style="border-radius: 15px; overflow: hidden;">
     <table class="admin-table">
         <thead>
@@ -81,14 +80,18 @@
                 <td>{{ row.company_retire }} 元</td>
             </tr>
             {% endfor %}
+            {% if not levels %}
+            <tr>
+                <td colspan="5" class="py-5 text-muted">該年份暫無資料，請匯入 CSV</td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>
 
 <div class="mt-4 p-3 bg-light rounded border">
     <p class="mb-0 text-muted" style="font-size: 18px;">
-        <i class="fa-solid fa-circle-info"></i> 提示：匯入新的 CSV 將會覆蓋目前的級距設定，請務必先下載範本核對格式。
+        <i class="fa-solid fa-circle-info"></i> 提示：匯入資料前請確認檔案內容符合該選定年份。
     </p>
 </div>
-
 {% endblock %}

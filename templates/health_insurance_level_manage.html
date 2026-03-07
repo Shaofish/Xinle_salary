@@ -43,7 +43,7 @@
     
     /* 側邊標記：強化第一欄級距顯示 */
     .range-column {
-        fw-bold;
+        font-weight: bold;
         color: #2b6cb0;
         border-right: 2px solid #cbd5e0 !important;
     }
@@ -66,6 +66,23 @@
             <i class="fa-solid fa-download"></i> 下載範本
         </a>
     </div>
+</div>
+
+<div class="mb-4 d-flex align-items-center gap-3">
+    <span class="fw-bold fs-4">選擇顯示年份：</span>
+    <div class="btn-group shadow-sm">
+        {% for year in available_years %}
+        <a href="{{ url_for('health_insurance_level_manage', year=year) }}" 
+           class="btn btn-lg {{ 'btn-primary active' if year == selected_year else 'btn-outline-primary' }}"
+           style="font-size: 20px; padding: 10px 25px;">
+            {{ year }} 年
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="alert alert-info py-2 fs-5 mb-4">
+    <i class="fa-solid fa-calendar-check me-2"></i> 目前正在查看：<strong>{{ selected_year }} 年</strong> 健保級距表
 </div>
 
 <div class="table-container shadow-lg" style="border-radius: 15px; overflow-x: auto; border: 3px solid #2d3748;">
@@ -91,6 +108,13 @@
                 <td class="fw-bold" style="background: #f8fafc; color: #1a202c;">{{ row.company_health }} 元</td>
             </tr>
             {% endfor %}
+            {% if not levels %}
+            <tr>
+                <td colspan="6" class="py-5 text-muted fs-4 text-center">
+                    <i class="fa-solid fa-folder-open me-2"></i> 該年份尚未有健保級距資料，請點擊上方按鈕匯入。
+                </td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>
@@ -98,9 +122,9 @@
 <div class="mt-4 p-4 bg-light rounded border" style="border-left: 8px solid #2b6cb0 !important;">
     <h5 class="fw-bold"><i class="fa-solid fa-circle-info text-primary"></i> 管理注意事項：</h5>
     <ul class="mb-0 fs-5 text-muted">
+        <li>目前顯示年份為 <strong>{{ selected_year }} 年</strong>，匯入 CSV 將會儲存至此年度。</li>
         <li>請確認 CSV 檔案內的第一欄標題為 <strong>Range</strong> 以利系統辨識。</li>
-        <li>匯入後系統會自動更新所有員工的計算基準，建議在每月初調整。</li>
-        <li>健保單位負擔額已包含平均眷口數計算，不需手動調整比例。</li>
+        <li>系統會根據薪資單的「年月」自動抓取對應年份的級距進行計算。</li>
     </ul>
 </div>
 
@@ -109,23 +133,25 @@ document.getElementById('csvFile').onchange = function(e) {
     const file = e.target.files[0];
     if (!file) return;
     
-    if(!confirm("確定要匯入新的健保級距資料嗎？這將會覆蓋現有所有設定。")) {
+    // ✨ 修改確認訊息，提示匯入的年份
+    if(!confirm("確定要匯入新的健保級距資料至 {{ selected_year }} 年嗎？這將會更新該年度所有設定。")) {
         this.value = '';
         return;
     }
 
     const formData = new FormData();
     formData.append('file', file);
+    // ✨ 傳送目前選定的年份給後端，確保資料存對地方
+    formData.append('year', "{{ selected_year }}");
 
-    // 顯示 Loading (可選，若有實作上一頁的 Loading 遮罩可在此觸發)
-    fetch("{{ url_for('health_insurance_level_manage') }}", {
+    fetch("{{ url_for('health_insurance_level_manage', year=selected_year) }}", {
         method: 'POST',
         body: formData
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            alert('✅ 健保級距表匯入成功！');
+            alert('✅ {{ selected_year }} 年健保級距表匯入成功！');
             location.reload();
         } else {
             alert('❌ 匯入失敗：' + data.error);

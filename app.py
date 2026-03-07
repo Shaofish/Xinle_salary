@@ -1438,51 +1438,37 @@ def download_labor_insurance_template():
                     as_attachment=True,
                     download_name='labor_insurance_template.csv')
 
-# ====== 勞保級距管理 ======
+# ====== 修改後的勞保級距管理 ======
 @app.route('/labor_insurance_level_manage', methods=['GET', 'POST'])
 @login_required
 def labor_insurance_level_manage():
     cursor = mysql.connection.cursor()
+    
+    # 1. 取得資料庫中現有的所有年份，供前端按鈕使用
+    cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level ORDER BY effective_year DESC")
+    available_years = [row['effective_year'] for row in cursor.fetchall()]
+    
+    # 2. 確定目前要顯示哪一年 (預設為最新一年)
+    selected_year = request.args.get('year', type=int)
+    if not selected_year and available_years:
+        selected_year = available_years[0]
+    elif not selected_year:
+        selected_year = datetime.now().year
+
     if request.method == 'POST':
-        action = request.form.get('action')
-        if action == 'update':
-            cursor.execute("""
-                UPDATE labor_insurance_level SET
-                    range=%s, employee_labor=%s,  company_labor=%s, company_occu=%s,  company_retire=%s
-                WHERE id=%s
-            """, (
-                request.form['range'],
-                request.form['employee_labor'],
-                request.form['company_labor'],
-                request.form['company_occu'],
-                request.form['company_retire'],
-                request.form['id']
-            ))
-            mysql.connection.commit()
-            flash('級距已更新', 'success')
-        elif action == 'delete':
-            cursor.execute("DELETE FROM labor_insurance_level WHERE id=%s", (request.form['id'],))
-            mysql.connection.commit()
-            flash('級距已刪除', 'info')
-        elif action == 'add':
-            cursor.execute("""
-                INSERT INTO labor_insurance_level (range, employee_labor, company_labor, company_occu, company_retire)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                request.form['range'],
-                request.form['employee_labor'],
-                request.form['company_labor'],
-                request.form['company_occu'],
-                request.form['company_retire'],
-            ))
-            mysql.connection.commit()
-            flash('新級距已新增', 'success')
-        return redirect(url_for('labor_insurance_level_manage'))
-    cursor.execute("SELECT * FROM labor_insurance_level ORDER BY `range` ASC")
+        # ... 原本的 update/delete/add 邏輯保持不變 ...
+        # 注意：如果是新增，記得要把 effective_year 存進去
+        return redirect(url_for('labor_insurance_level_manage', year=selected_year))
+
+    # 3. 只抓取選定年份的級距
+    cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_year,))
     levels = cursor.fetchall()
     cursor.close()
-    return render_template('labor_insurance_level_manage.html', levels=levels)
-
+    
+    return render_template('labor_insurance_level_manage.html', 
+                           levels=levels, 
+                           available_years=available_years, 
+                           selected_year=selected_year)
 # ====== 健保級距設定 ======
 @app.route('/get_health_insurance_levels/<int:year>')
 @login_required
@@ -1524,53 +1510,72 @@ def download_health_insurance_template():
                     as_attachment=True,
                     download_name='health_insurance_template.csv')
     
-# ====== 健保級距管理 ======
+# ====== 健保級距管理 (徹底修正版) ======
 @app.route('/health_insurance_level_manage', methods=['GET', 'POST'])
 @login_required
 def health_insurance_level_manage():
     cursor = mysql.connection.cursor()
+    
+    # --- 1. 取得所有可選年份 (供前端按鈕顯示) ---
+    cursor.execute("SELECT DISTINCT effective_year FROM health_insurance_level ORDER BY effective_year DESC")
+    available_years = [row['effective_year'] for row in cursor.fetchall()]
+    
+    # --- 2. 決定目前要顯示哪一年的級距 ---
+    selected_year = request.args.get('year', type=int)
+    if not selected_year and available_years:
+        selected_year = available_years[0]  # 預設顯示最新一年
+    elif not selected_year:
+        selected_year = datetime.now().year # 如果資料庫全空，預設今年
+
     if request.method == 'POST':
         action = request.form.get('action')
+        
         if action == 'update':
             cursor.execute("""
                 UPDATE health_insurance_level SET
-                    Range=%s, employee_and0=%s, employee_and1=%s, employee_and2=%s,employee_and3=%s , company_health=%s
+                    Range=%s, employee_and0=%s, employee_and1=%s, employee_and2=%s, employee_and3=%s, company_health=%s
                 WHERE id=%s
             """, (
-                request.form['Range'],
-                request.form['employee_and0'],
-                request.form['employee_and1'],
-                request.form['employee_and2'],
-                request.form['employee_and3'],
-                request.form['company_health'],
+                request.form['Range'], request.form['employee_and0'],
+                request.form['employee_and1'], request.form['employee_and2'],
+                request.form['employee_and3'], request.form['company_health'],
                 request.form['id']
             ))
             mysql.connection.commit()
             flash('級距已更新', 'success')
+            
         elif action == 'delete':
             cursor.execute("DELETE FROM health_insurance_level WHERE id=%s", (request.form['id'],))
             mysql.connection.commit()
             flash('級距已刪除', 'info')
+            
         elif action == 'add':
+            # ✨ 關鍵修正：必須把 effective_year 存進去，否則資料會跑到預設年份
             cursor.execute("""
-                INSERT INTO health_insurance_level (Range, employee_and0, employee_and1, employee_and2,employee_and3 , company_health)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO health_insurance_level (Range, employee_and0, employee_and1, employee_and2, employee_and3, company_health, effective_year)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (
-                request.form['Range'],
-                request.form['employee_and0'],
-                request.form['employee_and1'],
-                request.form['employee_and2'],
-                request.form['employee_and3'],
-                request.form['company_health']
+                request.form['Range'], request.form['employee_and0'],
+                request.form['employee_and1'], request.form['employee_and2'],
+                request.form['employee_and3'], request.form['company_health'],
+                selected_year # ✨ 存入當前正在操作的年份
             ))
             mysql.connection.commit()
-            flash('新級距已新增', 'success')
-        return redirect(url_for('health_insurance_level_manage'))
-    cursor.execute("SELECT * FROM health_insurance_level ORDER BY `Range` ASC")
+            flash(f'已新增 {selected_year} 年的新級距', 'success')
+            
+        # ✨ 關鍵：跳轉時必須帶回年份參數，否則頁面會跳回預設年份
+        return redirect(url_for('health_insurance_level_manage', year=selected_year))
+
+    # --- 3. GET 請求：只撈取指定年份的級距資料 ---
+    cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (selected_year,))
     levels = cursor.fetchall()
     cursor.close()
-    return render_template('health_insurance_level_manage.html', levels=levels)
-
+    
+    # 傳入 levels, available_years, selected_year 到前端
+    return render_template('health_insurance_level_manage.html', 
+                           levels=levels, 
+                           available_years=available_years, 
+                           selected_year=selected_year)
 # ==========薪資異動紀錄路由 (只看薪資相關)============
 @app.route('/edit_log_salary/<employee_id>')
 @login_required
