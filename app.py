@@ -282,8 +282,8 @@ column_mapping = {
     'retirement_plan_withdraw': '勞退自提',
     'home_caregiver_insurance': '家庭照顧險',
     'group_accident_insurance': '團險',
-    'additional_withholding_items': '額外代扣項目',
-    'additional_withholding_amout': '額外代扣金額',
+    'additional_withholding_items': '額外代扣項目(1)',
+    'additional_withholding_amout': '額外代扣金額(1)',
     'additional_withholding2_items': '額外代扣項目(2)',
     'additional_withholding2_amount': '額外代扣金額(2)',
 }
@@ -1223,7 +1223,7 @@ def export_excel(employee_id):
             s.`ultimate_salary`, s.`BGA_view`,s.`licence_allowance`, s.`holiday_bonus`, s.`birthday_bonus`,s.`referral_fee`, 
             s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
             s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
-            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
+            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
             s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`
         FROM employee_salary s
         JOIN employee_info i ON s.employee_id = i.employee_id
