@@ -87,7 +87,6 @@
                 </tr>
             </thead>
             <tbody>
-                {# 約定薪資與非固定支付部分保持不變... #}
                 <tr><td rowspan="12" class="center">約定薪資結構</td><td>薪資 (本薪)</td><td>{{ row['薪資']|int }}</td><td></td></tr>
                 <tr><td>轉場薪資</td><td>{{ row['轉場薪資']|int }}</td><td></td></tr>
                 <tr><td>職務津貼</td><td>{{ row['職務津貼']|int }}</td><td></td></tr>
@@ -101,24 +100,25 @@
                 <tr><td>跨區補助</td><td>{{ row['跨區補助']|int }}</td><td></td></tr>
                 <tr class="total-row"><td>合計 1</td><td>{{ row['合計1']|int }}</td><td></td></tr>
 
-                <tr><td rowspan="8" class="center">非固定支付項目</td><td>節日獎金</td><td>{{ row['節日獎金']|int }}</td><td></td></tr>
+                <tr><td rowspan="9" class="center">非固定支付項目</td><td>節日獎金</td><td>{{ row['節日獎金']|int }}</td><td></td></tr>
                 <tr><td>教育訓練費</td><td>{{ row['教育訓練費']|int }}</td><td></td></tr>
                 <tr><td>生日禮金</td><td>{{ row['生日禮金']|int }}</td><td></td></tr>
                 <tr><td>單一證照補助</td><td>{{ row['單一證照補助']|int }}</td><td></td></tr>
                 <tr><td>體檢補助</td><td>{{ row['體檢補助']|int }}</td><td></td></tr>
                 <tr><td>旅遊補助</td><td>{{ row['旅遊補助']|int }}</td><td></td></tr>
-                <tr><td>其他項目</td><td>{{ row['其他金額']|int }}</td><td>{{ row['其他項目'] }}</td></tr>
+                <tr><td>其他項目 (1)</td><td>{{ row['其他金額 1']|int }}</td><td>{{ row['其他項目 1'] }}</td></tr>
+                <tr><td>其他項目 (2)</td><td>{{ row['其他金額 2']|int }}</td><td>{{ row['其他項目 2'] }}</td></tr>
                 <tr class="total-row"><td>合計 2</td><td>{{ row['合計2']|int }}</td><td></td></tr>
 
-                <tr><td rowspan="7" class="center">應代扣項目</td><td>勞保費</td><td>{{ row['勞保費']|int }}</td><td></td></tr>
+                <tr><td rowspan="8" class="center">應代扣項目</td><td>勞保費</td><td>{{ row['勞保費']|int }}</td><td></td></tr>
                 <tr><td>健保費</td><td>{{ row['健保費']|int }}</td><td></td></tr>
                 <tr><td>照服員險代扣款</td><td>{{ row['照服員險代扣款']|int }}</td><td></td></tr>
                 <tr><td>團體意外險代扣款</td><td>{{ row['團體意外險代扣款']|int }}</td><td></td></tr>
                 <tr><td>勞退自提</td><td>{{ row['自願提撥退休金']|int }}</td><td></td></tr>
-                <tr><td>{{ row['額外代扣項目名稱'] if row['額外代扣項目名稱'] else '其他代扣' }}</td><td>{{ row['其他代扣']|int }}</td><td></td></tr>
+                <tr><td>{{ row['其他代扣項目 1'] if row['其他代扣項目 1'] else '其他代扣(1)' }}</td><td>{{ row['其他代扣金額 1']|int }}</td><td></td></tr>
+                <tr><td>{{ row['其他代扣項目 2'] if row['其他代扣項目 2'] else '其他代扣(2)' }}</td><td>{{ row['其他代扣金額 2']|int }}</td><td></td></tr>
                 <tr class="total-row"><td>代扣合計</td><td>{{ row['代扣合計']|int }}</td><td></td></tr>
 
-                {# ✨ 修改重點 1: 應發/實發名稱紅字 ✨ #}
                 <tr class="total-row" style="border-top: 2px solid #000;">
                     <td class="center text-red">應發薪資</td>
                     <td class="center">{{ row['應發薪資']|int }}</td>
@@ -126,7 +126,6 @@
                     <td class="center">{{ row['實發薪資']|int }}</td>
                 </tr>
 
-                {# ✨ 修改重點 2: 轉帳欄位背景色 ✨ #}
                 <tr class="bg-transfer">
                     <td class="center">轉帳 (10日)</td>
                     <td class="center">{{ row['轉帳薪資每月10日']|int }}</td>

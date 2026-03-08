@@ -265,10 +265,10 @@ column_mapping = {
     'training_fee': '教育訓練費',
     'teaching_subsidy': '教學補助費',
     'new_case_allowance': '新案補助費',
-    'extras': '其他項目',
-    'extras_amout': '其他金額',
-    'extras2': '其他項目(2)',
-    'extras2_amount': '其他金額(2)',
+    'extras': '其他項目 1',
+    'extras_amout': '其他金額 1',
+    'extras2': '其他項目 2',
+    'extras2_amount': '其他金額 2',
     #應代扣項目
     'total_payment_insure_grade': '勞保級距',
     'health_insure_grade': '健保級距',
@@ -282,10 +282,10 @@ column_mapping = {
     'retirement_plan_withdraw': '勞退自提',
     'home_caregiver_insurance': '家庭照顧險',
     'group_accident_insurance': '團險',
-    'additional_withholding_items': '額外代扣項目(1)',
-    'additional_withholding_amout': '額外代扣金額(1)',
-    'additional_withholding2_items': '額外代扣項目(2)',
-    'additional_withholding2_amount': '額外代扣金額(2)',
+    'additional_withholding_items': '額外代扣項目 1',
+    'additional_withholding_amout': '額外代扣金額 1',
+    'additional_withholding2_items': '額外代扣項目 2',
+    'additional_withholding2_amount': '額外代扣金額 2',
 }
 # ====== 中文對應（操作類型）======
 action_mapping = {
@@ -1337,9 +1337,9 @@ def export_excel_by_month(year_month):
             s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
             s.`AA09_bonus`, s.`Salary_subtotal`, s.`Inter_district_subsidie`,s.`leave_pay_days`, s.`leave_deduction_amount`, 
             s.`ultimate_salary`, s.`BGA_view`,s.`licence_allowance`, s.`holiday_bonus`, s.`birthday_bonus`,s.`referral_fee`, 
-            s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance` s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
+            s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
             s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
-            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
+            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
             s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`
         FROM employee_salary s
         JOIN employee_info i ON s.employee_id = i.employee_id
@@ -1367,11 +1367,19 @@ def export_excel_by_month(year_month):
         worksheet = writer.sheets['員工薪資資料']
         center_format = workbook.add_format({'align': 'center', 'valign': 'vcenter'})
 
+        # ✅ 根據欄名 & 資料內容動態調整欄寬 (修正版)
         for i, col in enumerate(df.columns):
-            max_length = max(
-                df[col].astype(str).map(len).max(),
-                len(col)
-            )
+            # 1. 取得該欄位所有資料，轉為字串並計算長度
+            # 使用 str.len() 是 pandas 內建處理字串長度最安全的方法
+            column_len = df[col].astype(str).str.len().max()
+            
+            # 2. 取得標題長度
+            header_len = len(str(col))
+            
+            # 3. 取兩者最大值
+            max_length = max(column_len, header_len)
+            
+            # 4. 設定欄寬 (考慮到中文，係數 2 是合理的；若全是數字可縮小至 1.2)
             worksheet.set_column(i, i, max_length * 2, center_format)
 
         worksheet.set_row(0, None, center_format)
@@ -1729,7 +1737,7 @@ def edit_log_profile(employee_id):
 def import_history_select():
     return render_template('import_history.html')
 
-# 2. 處理 Excel 匯入
+# 2. 處理 Excel 匯入 (包含詳細錯誤編號顯示)
 @app.route('/import_history_process', methods=['POST'])
 @login_required
 def import_history_process():
@@ -1750,73 +1758,74 @@ def import_history_process():
         reverse_mapping = {v: k for k, v in column_mapping.items()}
         df.rename(columns=reverse_mapping, inplace=True)
 
-        # 這樣才能強制 SQL 語句包含所有欄位，進而觸發 Trigger
-        df = df.replace({np.nan: 0}) 
-
         cur = mysql.connection.cursor()
         
-        # 獲取資料庫 employee_salary 真正存在的欄位清單
-        # 支援不同的 cursor 格式 (DictCursor 或 Tuple)
+        # 獲取資料庫真正存在的欄位清單
         cur.execute("DESCRIBE `employee_salary`")
         desc_result = cur.fetchall()
-        if desc_result and isinstance(desc_result[0], dict):
-            db_columns = [row['Field'] for row in desc_result]
-        else:
-            db_columns = [row[0] for row in desc_result]
+        db_columns = [row['Field'] if isinstance(row, dict) else row[0] for row in desc_result]
         
         success_count = 0
-        skip_count = 0
-        
+        skipped_ids = []  # ✨ 改用列表紀錄找不到的 ID
+
         for index, row in df.iterrows():
-            employee_id = row.get('employee_id')
+            employee_id = str(row.get('employee_id', '')).strip()
             
+            if not employee_id or employee_id == '0' or employee_id == 'nan':
+                continue
+
             # 確保員工編號存在於系統中
             cur.execute("SELECT employee_id FROM employee_info WHERE employee_id = %s", (employee_id,))
             if not cur.fetchone():
-                skip_count += 1
+                skipped_ids.append(employee_id)  # ✨ 紀錄錯誤的 ID
                 continue
             
-            # 只保留資料庫中有的欄位，不再過濾空值
+            # 準備匯入資料並處理空值
             import_data = {}
             for k, v in row.to_dict().items():
                 if k in db_columns:
-            #    ✨ 關鍵：判斷是否為日期欄位或數字欄位，分別處理空值
                     if pd.isnull(v):
-                        import_data[k] = 0 if 'hr' in k or 'bonus' in k or 'amout' in k else None
+                        # 判斷是否為數字欄位
+                        import_data[k] = 0 if any(x in k.lower() for x in ['hr', 'bonus', 'amout', 'amount', 'salary', 'grade']) else None
                     else:
                         import_data[k] = v
             
             if not import_data:
                 continue
 
-            # 建立 SQL 動態語句
             fields = list(import_data.keys())
             placeholders = ', '.join(['%s'] * len(fields))
             columns = ', '.join([f'`{f}`' for f in fields])
-            
-            # 使用 ON DUPLICATE KEY UPDATE
             update_clause = ', '.join([f'`{f}` = VALUES(`{f}`)' for f in fields])
+            
             sql = f"""
                 INSERT INTO `employee_salary` ({columns}) 
                 VALUES ({placeholders}) 
                 ON DUPLICATE KEY UPDATE {update_clause}
             """
             
-            # 確保轉換為 tuple 供 execute 使用
             cur.execute(sql, tuple(import_data.values()))
             success_count += 1
         
         mysql.connection.commit()
         cur.close()
         
-        msg = f'成功匯入 {success_count} 筆薪資歷史資料。系統已自動執行相關計算。'
-        if skip_count > 0:
-            msg += f'（跳過 {skip_count} 筆不存在的員工編號）'
-        flash(msg, 'success')
+        # --- 組合回饋訊息 ---
+        msg = f'✅ 成功匯入 {success_count} 筆資料。'
+        
+        if skipped_ids:
+            # ✨ 將重複的 ID 去重並轉成字串顯示
+            unique_skipped = list(set(skipped_ids))
+            skipped_str = ", ".join(unique_skipped)
+            msg += f' ⚠️ 注意：以下員工編號在系統中不存在，已跳過：[{skipped_str}]。請檢查員工基本資料是否尚未建立。'
+            flash(msg, 'warning') # 使用 warning 顏色較醒目
+        else:
+            flash(msg, 'success')
         
     except Exception as e:
-        mysql.connection.rollback()
-        flash(f'匯入失敗，原因：{str(e)}', 'danger')
+        if 'mysql.connection' in locals():
+            mysql.connection.rollback()
+        flash(f'❌ 匯入失敗，原因：{str(e)}', 'danger')
 
     return redirect(url_for('user'))
 
