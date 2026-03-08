@@ -677,7 +677,7 @@ def edit_salary_tabs(employee_id):
         'insurance': [
             'total_payment_insure_grade', 'health_insure_grade', 'Labor_premiums', 'Insurance_amount', 'retirement_plan_withdraw',
             'home_caregiver_insurance', 'group_accident_insurance', 'additional_withholding_items', 'additional_withholding_amout',
-            'company_labor', 'company_occu', 'company_health', 'company_retire', 'company_total','additional_withholding2_items', 'additional_withholding2_amount'
+            'company_labor', 'company_occu', 'company_health', 'company_retire', 'company_total','additional_withholding2_items', 'additional_withholding2_amount','remarks'
         ]
     }
 
@@ -1224,7 +1224,7 @@ def export_excel(employee_id):
             s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
             s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
             s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
-            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`
+            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`,s.`remarks`
         FROM employee_salary s
         JOIN employee_info i ON s.employee_id = i.employee_id
         WHERE s.employee_id = %s
@@ -1340,7 +1340,7 @@ def export_excel_by_month(year_month):
             s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
             s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
             s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
-            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`
+            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary, s.`thirtieth_salary`, s.`remarks`
         FROM employee_salary s
         JOIN employee_info i ON s.employee_id = i.employee_id
         WHERE s.year_month = %s
@@ -1828,6 +1828,54 @@ def import_history_process():
         flash(f'❌ 匯入失敗，原因：{str(e)}', 'danger')
 
     return redirect(url_for('user'))
+# ====== 員工保險級距異動歷史查詢 ======
+@app.route('/insurance_history/<employee_id>')
+@login_required
+def insurance_history(employee_id):
+    cursor = mysql.connection.cursor()
+    
+    # 1. 抓取員工基本資訊
+    cursor.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    emp = cursor.fetchone()
+    employee_name = emp['employee_name'] if emp else "未知員工"
 
+    # 2. 抓取所有個人資料修改紀錄 (篩選 edit_employee)
+    cursor.execute("""
+        SELECT timestamp, changed_fields, userid 
+        FROM edit_log 
+        WHERE employee_id = %s AND action_type = 'edit_employee'
+        ORDER BY timestamp DESC
+    """, (employee_id,))
+    logs = cursor.fetchall()
+
+    history_data = []
+    for log in logs:
+        # 解析 JSON 格式的變更欄位
+        try:
+            changes = json.loads(log['changed_fields'])
+        except:
+            continue
+            
+        # ✨ 篩選出包含「級距」字眼的變動
+        insurance_changes = {}
+        for field, val in changes.items():
+            # 將英文欄位名對應到中文，並判斷是否為級距相關
+            chinese_field = column_mapping.get(field, field)
+            if '級距' in chinese_field:
+                insurance_changes[chinese_field] = val
+        
+        # 如果這筆紀錄包含級距變動，則加入歷史清單
+        if insurance_changes:
+            history_data.append({
+                'time': log['timestamp'],
+                'user': log['userid'],
+                'details': insurance_changes
+            })
+
+    cursor.close()
+    return render_template('insurance_history.html', 
+                           employee_id=employee_id, 
+                           employee_name=employee_name, 
+                           history=history_data)
 if __name__ == '__main__':
     app.run(debug=True)

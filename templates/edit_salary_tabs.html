@@ -293,14 +293,17 @@
             </div>
           </div>
       </div>
-
+      
       <input type="hidden" id="employee_qualification" value="{{ info.qualification }}">
       <input type="hidden" id="employee_subsidy" value="{{ info.subsidy }}">
       <input type="hidden" id="employee_subsidy_none" value="{{ info.subsidy_none }}">
       <input type="hidden" id="employee_subsidy_half" value="{{ info.subsidy_half }}">
       <input type="hidden" id="employee_subsidy_full" value="{{ info.subsidy_full }}">
     </div>
-
+    <div class="card mt-4 p-4 border-secondary bg-light">
+          <label class="form-label"><i class="fa-solid fa-comment-dots"></i>備註</label>
+          <textarea name="remarks" class="form-control" rows="3" placeholder="請輸入本月薪資特殊說明...">{{ salary.remarks or '' }}</textarea>
+    </div>
     <div class="my-5 p-4 bg-white border-top shadow-sm sticky-bottom">
         <button type="submit" class="btn btn-success btn-save">
             <i class="fa-solid fa-cloud-arrow-up me-2"></i> 儲存所有分頁設定
