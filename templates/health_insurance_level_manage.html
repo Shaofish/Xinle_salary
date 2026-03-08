@@ -47,6 +47,13 @@
         color: #2b6cb0;
         border-right: 2px solid #cbd5e0 !important;
     }
+
+    /* 年份標籤強化 */
+    .year-btn-group .btn {
+        font-size: 20px;
+        padding: 10px 25px;
+        border-width: 2px;
+    }
 </style>
 
 <div class="d-flex align-items-center mb-4">
@@ -60,58 +67,64 @@
     <div class="d-flex gap-3">
         <input type="file" id="csvFile" accept=".csv" style="display:none">
         <button class="btn btn-success" style="font-size: 22px; padding: 12px 30px;" onclick="document.getElementById('csvFile').click()">
-            <i class="fa-solid fa-file-import"></i> 匯入 CSV 級距
+            <i class="fa-solid fa-file-import"></i> 批量匯入 CSV
         </button>
         <a href="{{ url_for('download_health_insurance_template') }}" class="btn btn-outline-primary" style="font-size: 20px; border-width: 2px;">
-            <i class="fa-solid fa-download"></i> 下載範本
+            <i class="fa-solid fa-download"></i> 下載 CSV 範本
         </a>
     </div>
 </div>
 
-<div class="mb-4 d-flex align-items-center gap-3">
-    <span class="fw-bold fs-4">選擇顯示年份：</span>
-    <div class="btn-group shadow-sm">
-        {% for year in available_years %}
-        <a href="{{ url_for('health_insurance_level_manage', year=year) }}" 
-           class="btn btn-lg {{ 'btn-primary active' if year == selected_year else 'btn-outline-primary' }}"
-           style="font-size: 20px; padding: 10px 25px;">
-            {{ year }} 年
-        </a>
-        {% endfor %}
+<div class="mb-4">
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="fw-bold fs-4"><i class="fa-solid fa-calendar-days me-2"></i>選擇顯示年份：</span>
+        <div class="btn-group year-btn-group shadow-sm">
+            {% for year in available_years %}
+            <a href="{{ url_for('health_insurance_level_manage', year=year) }}" 
+               class="btn {{ 'btn-primary active' if year == selected_year else 'btn-outline-primary' }}">
+                {{ year }} 年
+            </a>
+            {% endfor %}
+        </div>
     </div>
-</div>
-
-<div class="alert alert-info py-2 fs-5 mb-4">
-    <i class="fa-solid fa-calendar-check me-2"></i> 目前正在查看：<strong>{{ selected_year }} 年</strong> 健保級距表
+    
+    <div class="alert alert-info py-3 fs-5 shadow-sm border-start border-5 border-info">
+        <i class="fa-solid fa-circle-exclamation me-2"></i> 
+        目前視窗：<strong>{{ selected_year }} 年</strong> 的級距資料。
+        <span class="text-danger fw-bold">(注意：執行匯入將會「覆蓋」目前的 {{ selected_year }} 年資料)</span>
+    </div>
 </div>
 
 <div class="table-container shadow-lg" style="border-radius: 15px; overflow-x: auto; border: 3px solid #2d3748;">
     <table class="admin-table" style="min-width: 1100px;">
         <thead>
             <tr>
-                <th style="background: #2b6cb0;">薪資級距</th>
-                <th>本人(0)</th>
-                <th>本人+1眷</th>
-                <th>本人+2眷</th>
-                <th>本人+3眷</th>
-                <th style="background: #2d3748;">單位負擔額</th>
+                <th style="background: #2b6cb0;">薪資級距 (Range)</th>
+                <th>本人(0 眷)</th>
+                <th>本人 + 1 眷</th>
+                <th>本人 + 2 眷</th>
+                <th>本人 + 3 眷</th>
+                <th style="background: #2d3748;">單位負擔額 (60%)</th>
             </tr>
         </thead>
         <tbody>
             {% for row in levels %}
             <tr>
-                <td class="fw-bold range-column">{{ row.Range }}</td>
-                <td>{{ row.employee_and0 }} 元</td>
-                <td>{{ row.employee_and1 }} 元</td>
-                <td>{{ row.employee_and2 }} 元</td>
-                <td>{{ row.employee_and3 }} 元</td>
-                <td class="fw-bold" style="background: #f8fafc; color: #1a202c;">{{ row.company_health }} 元</td>
+                <td class="fw-bold range-column">{{ "{:,}".format(row.Range) if row.Range is not none else 0 }}</td>
+                <td>{{ "{:,}".format(row.employee_and0) if row.employee_and0 is not none else 0 }} 元</td>
+                <td>{{ "{:,}".format(row.employee_and1) if row.employee_and1 is not none else 0 }} 元</td>
+                <td>{{ "{:,}".format(row.employee_and2) if row.employee_and2 is not none else 0 }} 元</td>
+                <td>{{ "{:,}".format(row.employee_and3) if row.employee_and3 is not none else 0 }} 元</td>
+                <td class="fw-bold" style="background: #f8fafc; color: #1a202c;">
+                    {{ "{:,}".format(row.company_health) if row.company_health is not none else 0 }} 元
+                </td>
             </tr>
             {% endfor %}
             {% if not levels %}
             <tr>
                 <td colspan="6" class="py-5 text-muted fs-4 text-center">
-                    <i class="fa-solid fa-folder-open me-2"></i> 該年份尚未有健保級距資料，請點擊上方按鈕匯入。
+                    <i class="fa-solid fa-folder-open me-2"></i> 
+                    {{ selected_year }} 年尚未有健保資料。請切換年份或使用「批量匯入」新增。
                 </td>
             </tr>
             {% endif %}
@@ -119,13 +132,26 @@
     </table>
 </div>
 
-<div class="mt-4 p-4 bg-light rounded border" style="border-left: 8px solid #2b6cb0 !important;">
-    <h5 class="fw-bold"><i class="fa-solid fa-circle-info text-primary"></i> 管理注意事項：</h5>
-    <ul class="mb-0 fs-5 text-muted">
-        <li>目前顯示年份為 <strong>{{ selected_year }} 年</strong>，匯入 CSV 將會儲存至此年度。</li>
-        <li>請確認 CSV 檔案內的第一欄標題為 <strong>Range</strong> 以利系統辨識。</li>
-        <li>系統會根據薪資單的「年月」自動抓取對應年份的級距進行計算。</li>
-    </ul>
+<div class="mt-4 p-4 bg-light rounded border shadow-sm" style="border-left: 8px solid #2b6cb0 !important;">
+    <h5 class="fw-bold text-primary"><i class="fa-solid fa-circle-info"></i> 健保級距匯入說明：</h5>
+    <div class="row mt-3">
+        <div class="col-md-6">
+            <h6 class="fw-bold"><i class="fa-solid fa-shuffle me-2"></i>如何更新指定年份？</h6>
+            <ul class="fs-6 text-muted">
+                <li>請先點擊上方年份按鈕切換至該年度（如 2024）。</li>
+                <li>執行「批量匯入」，系統會自動清除舊的 2024 資料並換成檔案內容。</li>
+                <li>這項操作<strong>絕對不會</strong>影響到其他年份的資料。</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h6 class="fw-bold"><i class="fa-solid fa-file-csv me-2"></i>CSV 檔案規範：</h6>
+            <ul class="fs-6 text-muted">
+                <li>標題必須包含：<code>Range, employee_and0, employee_and1, employee_and2, employee_and3, company_health</code>。</li>
+                <li>若檔案內含 <code>effective_year</code>，系統會優先依照檔案年份歸檔。</li>
+                <li>金額內含逗號 (如 27,470) 系統會自動清洗，請放心匯入。</li>
+            </ul>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -133,31 +159,54 @@ document.getElementById('csvFile').onchange = function(e) {
     const file = e.target.files[0];
     if (!file) return;
     
-    // ✨ 修改確認訊息，提示匯入的年份
-    if(!confirm("確定要匯入新的健保級距資料至 {{ selected_year }} 年嗎？這將會更新該年度所有設定。")) {
-        this.value = '';
+    const targetYear = "{{ selected_year }}";
+    
+    // 彈出確認視窗，防止誤覆蓋
+    const confirmMsg = `【健保級距匯入確認】\n\n` +
+                       `目前選定年份：${targetYear} 年。\n` +
+                       `匯入後將會「完全取代」資料庫中 ${targetYear} 年的所有紀錄。\n\n` +
+                       `※ 如果您的 CSV 內含 effective_year 欄位，則會以檔案內的年份為準。\n` +
+                       `是否確定繼續？`;
+    
+    if(!confirm(confirmMsg)) {
+        this.value = ''; // 重置檔案選取
         return;
     }
 
     const formData = new FormData();
     formData.append('file', file);
-    // ✨ 傳送目前選定的年份給後端，確保資料存對地方
-    formData.append('year', "{{ selected_year }}");
+    formData.append('year', targetYear); 
 
-    fetch("{{ url_for('health_insurance_level_manage', year=selected_year) }}", {
+    // 鎖定按鈕並顯示 Loading 狀態
+    const btn = document.querySelector('button[onclick*="csvFile"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
+
+    fetch("{{ url_for('health_insurance_level_manage') }}", {
         method: 'POST',
         body: formData
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) throw new Error('網路回應不正常');
+        return res.json();
+    })
     .then(data => {
         if (data.success) {
-            alert('✅ {{ selected_year }} 年健保級距表匯入成功！');
-            location.reload();
+            alert(`✅ 健保級距表已更新成功！`);
+            // 如果匯入包含多個年份，重新整理頁面即可看到新標籤
+            location.href = "{{ url_for('health_insurance_level_manage') }}?year=" + targetYear;
         } else {
             alert('❌ 匯入失敗：' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     })
-    .catch(err => alert('系統發生錯誤：' + err));
+    .catch(err => {
+        alert('系統發生連線錯誤：' + err);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
 };
 </script>
 {% endblock %}

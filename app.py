@@ -1438,17 +1438,17 @@ def download_labor_insurance_template():
                     as_attachment=True,
                     download_name='labor_insurance_template.csv')
 
-# ====== 修改後的勞保級距管理 ======
+# ====== 勞保級距管理路由 ======
 @app.route('/labor_insurance_level_manage', methods=['GET', 'POST'])
 @login_required
 def labor_insurance_level_manage():
     cursor = mysql.connection.cursor()
     
-    # 1. 取得資料庫中現有的所有年份，供前端按鈕使用
+    # 1. 取得所有年份供標籤顯示
     cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level ORDER BY effective_year DESC")
     available_years = [row['effective_year'] for row in cursor.fetchall()]
     
-    # 2. 確定目前要顯示哪一年 (預設為最新一年)
+    # 2. 決定目前顯示年份
     selected_year = request.args.get('year', type=int)
     if not selected_year and available_years:
         selected_year = available_years[0]
@@ -1456,19 +1456,61 @@ def labor_insurance_level_manage():
         selected_year = datetime.now().year
 
     if request.method == 'POST':
-        # ... 原本的 update/delete/add 邏輯保持不變 ...
-        # 注意：如果是新增，記得要把 effective_year 存進去
+        if 'file' in request.files:
+            file = request.files['file']
+            # 前端標籤的年份（作為備用）
+            fallback_year = request.form.get('year', selected_year, type=int)
+            
+            try:
+                df = pd.read_csv(io.BytesIO(file.read()), encoding='utf-8-sig')
+                df.columns = [c.lower().strip() for c in df.columns]
+
+                def clean_val(value):
+                    if pd.isna(value) or str(value).strip() == '': return 0
+                    return int(str(value).replace(',', '').replace(' ', '').split('.')[0])
+
+                # ✨ 核心修正：偵測 CSV 內是否有年份欄位
+                has_year_col = 'effective_year' in df.columns
+                
+                # 找出 CSV 中所有的年份並執行精準刪除 (避免重複)
+                if has_year_col:
+                    import_years = df['effective_year'].unique()
+                    for y in import_years:
+                        cursor.execute("DELETE FROM labor_insurance_level WHERE effective_year = %s", (int(y),))
+                else:
+                    cursor.execute("DELETE FROM labor_insurance_level WHERE effective_year = %s", (fallback_year,))
+                
+                # 逐行寫入
+                for _, row in df.iterrows():
+                    # ✨ 優先使用 CSV 裡的年份
+                    row_year = int(row['effective_year']) if has_year_col else fallback_year
+                    
+                    cursor.execute("""
+                        INSERT INTO labor_insurance_level 
+                        (`range`, `employee_labor`, `company_labor`, `company_occu`, `company_retire`, `effective_year`)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (
+                        clean_val(row['range']), 
+                        clean_val(row['employee_labor']), 
+                        clean_val(row['company_labor']), 
+                        clean_val(row['company_occu']), 
+                        clean_val(row['company_retire']), 
+                        row_year
+                    ))
+                
+                mysql.connection.commit()
+                return jsonify({'success': True})
+            except Exception as e:
+                mysql.connection.rollback()
+                return jsonify({'success': False, 'error': str(e)})
+
         return redirect(url_for('labor_insurance_level_manage', year=selected_year))
 
-    # 3. 只抓取選定年份的級距
     cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_year,))
     levels = cursor.fetchall()
     cursor.close()
+    return render_template('labor_insurance_level_manage.html', levels=levels, available_years=available_years, selected_year=selected_year)
     
-    return render_template('labor_insurance_level_manage.html', 
-                           levels=levels, 
-                           available_years=available_years, 
-                           selected_year=selected_year)
 # ====== 健保級距設定 ======
 @app.route('/get_health_insurance_levels/<int:year>')
 @login_required
@@ -1510,72 +1552,101 @@ def download_health_insurance_template():
                     as_attachment=True,
                     download_name='health_insurance_template.csv')
     
-# ====== 健保級距管理 (徹底修正版) ======
+
+# ====== 健保級距管理路由 ======
+# ====== 健保級距管理路由 (最終穩定版) ======
 @app.route('/health_insurance_level_manage', methods=['GET', 'POST'])
 @login_required
 def health_insurance_level_manage():
     cursor = mysql.connection.cursor()
     
-    # --- 1. 取得所有可選年份 (供前端按鈕顯示) ---
+    # 1. 取得所有年份 (供分頁標籤顯示)
     cursor.execute("SELECT DISTINCT effective_year FROM health_insurance_level ORDER BY effective_year DESC")
     available_years = [row['effective_year'] for row in cursor.fetchall()]
     
-    # --- 2. 決定目前要顯示哪一年的級距 ---
+    # 2. 決定目前查看的年份
     selected_year = request.args.get('year', type=int)
     if not selected_year and available_years:
-        selected_year = available_years[0]  # 預設顯示最新一年
+        selected_year = available_years[0]
     elif not selected_year:
-        selected_year = datetime.now().year # 如果資料庫全空，預設今年
+        selected_year = datetime.now().year
 
     if request.method == 'POST':
+        # ✨ 處理 AJAX CSV 批量匯入
+        if 'file' in request.files:
+            file = request.files['file']
+            # 前端標籤選定的年份 (備用)
+            fallback_year = request.form.get('year', selected_year, type=int)
+            
+            try:
+                # 讀取 CSV
+                df = pd.read_csv(io.BytesIO(file.read()), encoding='utf-8-sig')
+                
+                # 統一標題為小寫並去除兩端空白，並相容 Range/range
+                df.rename(columns={'Range': 'range'}, inplace=True)
+                df.columns = [c.lower().strip() for c in df.columns]
+
+                # 定義資料清洗函數：解決 "data truncated" (移除逗號、空格)
+                def clean_val(value):
+                    if pd.isna(value) or str(value).strip() == '':
+                        return 0
+                    # 移除逗號、空白、小數點以後的內容，確保轉為純整數
+                    cleaned = str(value).replace(',', '').replace(' ', '').replace('$', '').split('.')[0]
+                    return int(cleaned)
+
+                # ✨ 核心修正：偵測 CSV 內是否有 effective_year 欄位
+                has_year_col = 'effective_year' in df.columns
+                
+                # 找出 CSV 中包含的所有年份，執行精準刪除，防止不同年份資料混雜
+                if has_year_col:
+                    import_years = df['effective_year'].unique().tolist()
+                    for y in import_years:
+                        cursor.execute("DELETE FROM health_insurance_level WHERE effective_year = %s", (int(y),))
+                else:
+                    cursor.execute("DELETE FROM health_insurance_level WHERE effective_year = %s", (fallback_year,))
+                    import_years = [fallback_year]
+                
+                # 逐行清洗並匯入
+                for _, row in df.iterrows():
+                    # 優先使用 CSV 內的年份，若無則使用標籤年份
+                    row_year = int(row['effective_year']) if has_year_col else fallback_year
+                    
+                    cursor.execute("""
+                        INSERT INTO health_insurance_level 
+                        (`Range`, `employee_and0`, `employee_and1`, `employee_and2`, `employee_and3`, `company_health`, `effective_year`)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        clean_val(row['range']), 
+                        clean_val(row['employee_and0']),
+                        clean_val(row['employee_and1']), 
+                        clean_val(row['employee_and2']),
+                        clean_val(row['employee_and3']), 
+                        clean_val(row['company_health']),
+                        row_year
+                    ))
+                
+                mysql.connection.commit()
+                return jsonify({'success': True, 'years': import_years})
+            except Exception as e:
+                mysql.connection.rollback()
+                print(f"DEBUG - 健保匯入報錯: {str(e)}") # 這會印在您的 Python 終端機
+                return jsonify({'success': False, 'error': str(e)})
+
+        # 保留單筆修改/刪除邏輯...
         action = request.form.get('action')
+        # ... 原本邏輯 ...
         
-        if action == 'update':
-            cursor.execute("""
-                UPDATE health_insurance_level SET
-                    Range=%s, employee_and0=%s, employee_and1=%s, employee_and2=%s, employee_and3=%s, company_health=%s
-                WHERE id=%s
-            """, (
-                request.form['Range'], request.form['employee_and0'],
-                request.form['employee_and1'], request.form['employee_and2'],
-                request.form['employee_and3'], request.form['company_health'],
-                request.form['id']
-            ))
-            mysql.connection.commit()
-            flash('級距已更新', 'success')
-            
-        elif action == 'delete':
-            cursor.execute("DELETE FROM health_insurance_level WHERE id=%s", (request.form['id'],))
-            mysql.connection.commit()
-            flash('級距已刪除', 'info')
-            
-        elif action == 'add':
-            # ✨ 關鍵修正：必須把 effective_year 存進去，否則資料會跑到預設年份
-            cursor.execute("""
-                INSERT INTO health_insurance_level (Range, employee_and0, employee_and1, employee_and2, employee_and3, company_health, effective_year)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (
-                request.form['Range'], request.form['employee_and0'],
-                request.form['employee_and1'], request.form['employee_and2'],
-                request.form['employee_and3'], request.form['company_health'],
-                selected_year # ✨ 存入當前正在操作的年份
-            ))
-            mysql.connection.commit()
-            flash(f'已新增 {selected_year} 年的新級距', 'success')
-            
-        # ✨ 關鍵：跳轉時必須帶回年份參數，否則頁面會跳回預設年份
         return redirect(url_for('health_insurance_level_manage', year=selected_year))
 
-    # --- 3. GET 請求：只撈取指定年份的級距資料 ---
+    # GET 請求：撈取指定年份
     cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (selected_year,))
     levels = cursor.fetchall()
     cursor.close()
     
-    # 傳入 levels, available_years, selected_year 到前端
     return render_template('health_insurance_level_manage.html', 
-                           levels=levels, 
-                           available_years=available_years, 
-                           selected_year=selected_year)
+                            levels=levels, 
+                            available_years=available_years, 
+                            selected_year=selected_year)
 # ==========薪資異動紀錄路由 (只看薪資相關)============
 @app.route('/edit_log_salary/<employee_id>')
 @login_required
