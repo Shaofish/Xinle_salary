@@ -84,11 +84,11 @@
       <div class="row">
           <div class="col-md-6 field-group">
               <label class="form-label">產能金額：</label>
-              <input type="number" id="capacity_amount" name="capacity_amout" value="{{ salary.capacity_amout }}" class="form-control" placeholder="請輸入產能金額">
+              <input type="number" id="capacity_amout" name="capacity_amout" value="{{ salary.capacity_amout }}" class="form-control" placeholder="請輸入產能金額">
           </div>
           <div class="col-md-6 field-group">
               <label class="form-label">拆帳金額 (60%)：<span class="info-badge">自動計算</span></label>
-              <input type="number" id="split_amount" name="split_amount" value="{{ salary.split_amount }}" class="form-control readonly-field" >
+              <input type="number" id="Split_amount" name="Split_amount" value="{{ salary.Split_amount }}" class="form-control readonly-field" >
           </div>
       </div>
 
@@ -339,21 +339,6 @@
         if (window.calcPerformanceBonus) window.calcPerformanceBonus();
     };
 
-    window.onload = async function() {
-    // 1. 從選定的月份抓取年份 (例如 "202601" -> 2026)
-    const selectedMonth = "{{ selected_month }}"; 
-    const currentYear = selectedMonth.substring(0, 4);
-
-    // 2. 呼叫帶有年份參數的載入函式
-    await loadLaborInsuranceLevels(currentYear);
-    await loadHealthInsuranceLevels(currentYear);
-    
-    attachCheckupAutoFill();
-    calculateTotalHours();
-    calculateSplit(); 
-    if (window.calcPerformanceBonus) window.calcPerformanceBonus();
-};
-
     // --- 勞保級距邏輯 (新增 year 參數) ---
     async function loadLaborInsuranceLevels(year) {
         const select = document.getElementById('insuranceRange');
@@ -483,8 +468,8 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-      const cap = document.getElementById("capacity_amount");
-      const spl = document.getElementById("split_amount");
+      const cap = document.getElementById("capacity_amout");
+      const spl = document.getElementById("Split_amount");
       cap.addEventListener("input", () => {
         const calculatedValue = Math.round(cap.value * 0.6);
         spl.value = calculatedValue; // 自動更新，但因為欄位沒鎖，使用者之後可以改
@@ -496,7 +481,7 @@
 
       window.calcPerformanceBonus = () => {
         const get = n => parseFloat(document.querySelector(`input[name='${n}']`)?.value || 0);
-        const split = get('split_amount');
+        const split = get('Split_amount');
         const ot = get('total_overtime_pay_weekdays') + get('total_overtime_pay_restdays') + get('total_pay_holidays') + get('total_pay_national_holidays');
         const perf = split - ((get('daily_work_hr')*200) + get('transition_allowance') + ot + get('duty_allowance'));
         document.getElementById("Performance_bonuses").value = perf.toFixed(2);

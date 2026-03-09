@@ -20,7 +20,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '410770167'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -1224,7 +1224,7 @@ def export_excel(employee_id):
             s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
             s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
             s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
-            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`,s.`remarks`
+            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`, s.`remarks`
         FROM employee_salary s
         JOIN employee_info i ON s.employee_id = i.employee_id
         WHERE s.employee_id = %s
@@ -1340,7 +1340,7 @@ def export_excel_by_month(year_month):
             s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
             s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
             s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
-            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary, s.`thirtieth_salary`, s.`remarks`
+            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`, s.`remarks`
         FROM employee_salary s
         JOIN employee_info i ON s.employee_id = i.employee_id
         WHERE s.year_month = %s
