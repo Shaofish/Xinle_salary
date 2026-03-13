@@ -321,6 +321,19 @@
         btn.classList.add('active');
     }
 
+    // --- 計算拆帳金額 ---
+    function calculateSplit() {
+        const cap = document.getElementById("capacity_amout");
+        const spl = document.getElementById("Split_amount");
+        if (cap && spl) {
+            const capVal = parseFloat(cap.value) || 0;
+            // 若產能大於 0 (或已經有數值)，自動計算 60% 帶入拆帳金額
+            if (capVal > 0) {
+                spl.value = Math.round(capVal * 0.6);
+            }
+        }
+    }
+
     // ✨ 修正後的初始化邏輯 ✨
     window.onload = async function() {
         // 1. 從 Jinja2 變數抓取選定的月份 (例如 "202601") 並提取前 4 位數作為年份
@@ -479,30 +492,30 @@
         window.calcPerformanceBonus();
     });
 
-      window.calcPerformanceBonus = () => {
-        const get = n => parseFloat(document.querySelector(`input[name='${n}']`)?.value || 0);
-        const split = get('Split_amount');
-        const ot = get('total_overtime_pay_weekdays') + get('total_overtime_pay_restdays') + get('total_pay_holidays') + get('total_pay_national_holidays');
-        const perf = split - ((get('daily_work_hr')*200) + get('transition_allowance') + ot + get('duty_allowance'));
-        document.getElementById("Performance_bonuses").value = perf.toFixed(2);
-        const av = get('AA09_bonus_view');
-        document.getElementById("AA09_bonus").value = (perf < 0 ? (av + perf) : av).toFixed(2);
-      };
+    window.calcPerformanceBonus = () => {
+    const get = n => parseFloat(document.querySelector(`input[name='${n}']`)?.value || 0);
+    const split = get('Split_amount');
+    const ot = get('total_overtime_pay_weekdays') + get('total_overtime_pay_restdays') + get('total_pay_holidays') + get('total_pay_national_holidays');
+    const perf = split - ((get('daily_work_hr')*200) + get('transition_allowance') + ot + get('duty_allowance'));
+    document.getElementById("Performance_bonuses").value = perf.toFixed(2);
+    const av = get('AA09_bonus_view');
+    document.getElementById("AA09_bonus").value = (perf < 0 ? (av + perf) : av).toFixed(2);
+    };
 
-      document.querySelectorAll("input").forEach(i => i.addEventListener("input", window.calcPerformanceBonus));
-      
-      const recalcLeave = () => {
-        const days = parseFloat(document.getElementById("leave_days").value || 0);
-        const taken = parseFloat(document.getElementById("leave_taken_days").value || 0);
-        const annual = parseFloat(document.getElementById("annual_total_hours").value || 0);
-        const service = parseFloat(document.getElementById("total_service_hours").value || 0);
-        const remain = days - taken;
-        document.getElementById("leave_hours_per_day").value = remain > 0 ? (annual/remain).toFixed(2) : 0;
-        const payDays = annual > 0 ? (service * remain / annual) : 0;
-        document.getElementById("leave_pay_days").value = payDays.toFixed(2);
-        document.getElementById("leave_deduction_amount").value = Math.round(payDays * 1600);
-      };
-      ["leave_days","leave_taken_days","annual_total_hours","total_service_hours"].forEach(id => document.getElementById(id).addEventListener("input", recalcLeave));
+    document.querySelectorAll("input").forEach(i => i.addEventListener("input", window.calcPerformanceBonus));
+    
+    const recalcLeave = () => {
+    const days = parseFloat(document.getElementById("leave_days").value || 0);
+    const taken = parseFloat(document.getElementById("leave_taken_days").value || 0);
+    const annual = parseFloat(document.getElementById("annual_total_hours").value || 0);
+    const service = parseFloat(document.getElementById("total_service_hours").value || 0);
+    const remain = days - taken;
+    document.getElementById("leave_hours_per_day").value = remain > 0 ? (annual/remain).toFixed(2) : 0;
+    const payDays = annual > 0 ? (service * remain / annual) : 0;
+    document.getElementById("leave_pay_days").value = payDays.toFixed(2);
+    document.getElementById("leave_deduction_amount").value = Math.round(payDays * 1600);
+    };
+    ["leave_days","leave_taken_days","annual_total_hours","total_service_hours"].forEach(id => document.getElementById(id).addEventListener("input", recalcLeave));
     });
 
     function validateForm() { return true; }
