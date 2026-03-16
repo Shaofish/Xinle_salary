@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-    /* 強化標題與區隔 */
+    /* 1. 頁面標題與基礎佈局 */
     .preview-header {
         display: flex;
         justify-content: space-between;
@@ -14,7 +14,7 @@
         border-bottom: 4px solid #1a365d;
     }
 
-    /* 🌟 新增：年份導覽列樣式 */
+    /* 2. 年份導覽列：美化按鈕樣式 */
     .year-nav {
         background: #edf2f7;
         padding: 15px;
@@ -38,38 +38,43 @@
     }
     .year-btn:hover { background: #2b6cb0; color: white; }
 
-    /* 橫向捲動容器美化 */
+    /* 3. 凍結表頭核心：橫向與縱向捲動容器 */
     .table-scroll-container {
         width: 100%;
-        max-height: 70vh; /* 🌟 限制高度以啟用表頭固定 */
+        max-height: 75vh; /* 限制高度，確保滾動條出現在容器內而非視窗 */
         overflow: auto;
         border: 3px solid #2d3748;
         border-radius: 12px;
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         background: white;
+        position: relative;
     }
 
-    /* 專業報表表格 */
     .preview-table {
         width: max-content;
-        border-collapse: separate; /* 🌟 必須改為 separate 才能讓 Sticky 工作 */
+        border-collapse: separate; /* 必須用 separate 才能讓 Sticky 位移正確 */
         border-spacing: 0;
         margin: 0;
         font-size: 18px;
     }
 
-    /* 🌟 表頭固定 (Sticky Header) */
-    .preview-table thead tr th {
+    /* --- 🌟 頂部表頭凍結設定 (Sticky Header) --- */
+    /* 第一層大項標題 */
+    .preview-table thead tr:first-child th {
         position: sticky;
         top: 0;
-        z-index: 20;
+        z-index: 40; /* 高於側邊欄 */
         background-color: #2d3748;
-        border: 1px solid #4a5568;
+        box-shadow: inset 0 -2px 0 #4a5568;
     }
 
-    /* 為了雙層表頭，第二層也要設定 top */
+    /* 第二層明細標題 */
     .preview-table thead tr:nth-child(2) th {
-        top: 55px; /* 根據第一層高度調整 */
+        position: sticky;
+        top: 55px; /* 這裡需根據第一行的高度微調 */
+        z-index: 40;
+        background-color: #2d3748;
+        box-shadow: inset 0 -2px 0 #4a5568;
     }
 
     .preview-table th {
@@ -78,13 +83,32 @@
         text-align: center;
         white-space: nowrap;
         font-weight: bold;
+        border-right: 1px solid #4a5568;
     }
 
+    /* 分組顏色 */
     .head-salary { background-color: #2c5282 !important; }
     .head-bonus { background-color: #276749 !important; }
     .head-deduct { background-color: #9b2c2c !important; }
     .head-company { background-color: #4a5568 !important; }
 
+    /* --- 🌟 左側首欄凍結設定 (Sticky Column) --- */
+    .preview-table th:first-child, 
+    .preview-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 30; /* 高於一般資料格 */
+        background-color: #f7fafc;
+        border-right: 3px solid #2d3748 !important;
+    }
+
+    /* 左上角交叉點格位 (年月標題) */
+    .preview-table thead tr:first-child th:first-child {
+        z-index: 50; /* 最高權限，防止被覆蓋 */
+        background-color: #1a365d;
+    }
+
+    /* 4. 一般資料格樣式 */
     .preview-table td {
         padding: 12px 15px;
         border-bottom: 1px solid #cbd5e0;
@@ -92,26 +116,12 @@
         text-align: center;
         white-space: nowrap;
         color: #2d3748;
-    }
-
-    /* 🌟 首欄固定 (Sticky Column) */
-    .preview-table th:first-child, 
-    .preview-table td:first-child {
-        position: sticky;
-        left: 0;
-        z-index: 15;
-        background-color: #f7fafc;
-        border-right: 3px solid #2d3748 !important;
-    }
-    
-    /* 處理交點 (左上角第一格) */
-    .preview-table thead tr th:first-child {
-        z-index: 30;
-        background-color: #1a365d;
+        background-color: white;
     }
 
     .preview-table tr:hover td { background-color: #ebf4ff !important; }
 
+    /* 金額文字強化 */
     .text-amount { font-family: 'Consolas', monospace; font-weight: bold; color: #2c5282; }
     .text-deduct { color: #c53030; font-weight: bold; }
     .text-final { background-color: #fffaf0; color: #c53030; font-weight: 800; font-size: 22px; }
@@ -121,8 +131,8 @@
         text-align: left !important; font-size: 15px; color: #718096;
     }
 
-    /* 🌟 高亮顯示正在跳轉的年份 */
-    :target { background-color: #fff5f5 !important; transition: 2s; }
+    /* 跳轉目標高亮動畫 */
+    :target { background-color: #fff5f5 !important; transition: 1s; }
 </style>
 
 <div class="preview-header">
