@@ -264,13 +264,28 @@
       </div>
 
       <div class="row mt-4">
-          {% for f,label in [('home_caregiver_insurance','照服員責任險'),('group_accident_insurance','團體意外險'),('retirement_plan_withdraw','勞退自提金額')] %}
+          {% for f,label in [('home_caregiver_insurance','照服員責任險'),('group_accident_insurance','團體意外險')] %}
           <div class="col-md-4 field-group">
               <label class="form-label">{{label}}：</label>
               <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input">
           </div>
           {% endfor %}
-      </div>
+            <div class="col-md-4 field-group">
+              <div class="d-flex justify-content-between align-items-center" style="margin-top: 10px; margin-bottom: 8px;">
+                  <label class="form-label m-0" style="margin-top: 0 !important;">勞退自提金額：</label>
+                  <div class="d-flex align-items-center gap-3">
+                      <label class="d-flex align-items-center m-0" style="cursor: pointer;">
+                          <input type="radio" id="radio_0" name="retire_radio" onclick="calcRetirement(0)" style="width: 20px; height: 20px; margin: 0 6px 0 0; cursor: pointer;"> 
+                          <span class="fw-bold" style="color: #4b4b4b; font-size: 18px; padding-top: 2px;">0%</span>
+                      </label>
+                      <label class="d-flex align-items-center m-0" style="cursor: pointer;">
+                          <input type="radio" id="radio_6" name="retire_radio" onclick="calcRetirement(6)" style="width: 20px; height: 20px; margin: 0 6px 0 0; cursor: pointer;"> 
+                          <span class="fw-bold" style="color: #4b4b4b; font-size: 18px; padding-top: 2px;">6%</span>
+                      </label>
+                  </div>
+              </div>
+              <input name="retirement_plan_withdraw" id="retirement_plan_withdraw" value="{{salary.retirement_plan_withdraw}}" class="form-control numeric-input">
+          </div>
 
       <div class="card mt-4 p-4 border-danger bg-danger-subtle">
           <h5 class="fw-bold text-danger"><i class="fa-solid fa-circle-minus"></i> 額外扣款項目</h5>
@@ -350,6 +365,7 @@
         calculateTotalHours();
         calculateSplit(); 
         if (window.calcPerformanceBonus) window.calcPerformanceBonus();
+        syncRetirementRadio();
     };
 
     // --- 勞保級距邏輯 (新增 year 參數) ---
@@ -389,6 +405,7 @@
       document.getElementById('company_labor').value = l.company_labor;
       document.getElementById('company_occu').value = l.company_occu;
       document.getElementById('company_retire').value = l.company_retire;
+      syncRetirementRadio();
     }
 
     // --- 健保級距邏輯 (新增 year 參數) ---
@@ -473,12 +490,62 @@
       hrs.addEventListener('input', update);
     }
 
-    // --- 計算總工時與績效 ---
-    function calculateTotalHours() {
-      const ids = ["daily_work_hr","holiday_work_hr","transition_hr","Overtime_pay_weekdays910hr","Overtime_pay_weekdays1112hr","Overtime_pay_rest_days12hr","Overtime_pay_rest_days38hr","holiday_overtime_hr","National_holidays_hr"];
-      const total = ids.reduce((sum, id) => sum + parseFloat(document.getElementById(id)?.value || 0), 0);
-      document.getElementById("total_hours").value = total.toFixed(2);
+// --- 計算勞退自提金額 ---
+    function calcRetirement(percent) {
+        const gradeInput = document.getElementById('total_payment_insure_grade');
+        const withdrawInput = document.getElementById('retirement_plan_withdraw');
+        
+        if (!gradeInput || !withdrawInput) return;
+        
+        const gradeValue = parseFloat(gradeInput.value) || 0;
+        if (gradeValue === 0) {
+            alert('請先在上方選擇「勞保投保級距」後再計算！');
+            document.getElementById('radio_' + percent).checked = false; // 恢復未勾選
+            return;
+        }
+
+        if (percent === 0) {
+            withdrawInput.value = 0;
+        } else if (percent === 6) {
+            withdrawInput.value = Math.round(gradeValue * 0.06);
+        }
     }
+
+    // --- ✨ 自動同步判斷 0% 或 6% 勾選狀態 ---
+    function syncRetirementRadio() {
+        const withdrawInput = document.getElementById('retirement_plan_withdraw');
+        const gradeInput = document.getElementById('total_payment_insure_grade');
+        const radio0 = document.getElementById('radio_0');
+        const radio6 = document.getElementById('radio_6');
+
+        if (!withdrawInput || !radio0 || !radio6) return;
+
+        const currentValue = withdrawInput.value.trim();
+        const gradeValue = gradeInput ? parseFloat(gradeInput.value) || 0 : 0;
+
+        // 預設先清空勾選
+        radio0.checked = false;
+        radio6.checked = false;
+
+        if (currentValue === "") return; // 空白不勾選
+
+        const numValue = parseFloat(currentValue);
+
+        // 如果數字是 0 就亮 0%；如果數字剛好等於級距的 6% 就亮 6%
+        if (numValue === 0) {
+            radio0.checked = true;
+        } else if (gradeValue > 0 && numValue === Math.round(gradeValue * 0.06)) {
+            radio6.checked = true;
+        }
+    }
+    // 當使用者手動修改勞退輸入框的數字時，自動清除 0% 或 6% 的圓圈勾選狀態
+    document.addEventListener("DOMContentLoaded", function() {
+        const withdrawInput = document.getElementById('retirement_plan_withdraw');
+        if (withdrawInput) {
+            // 當使用者在輸入框打字時，不要無腦取消勾選，而是呼叫智慧判斷函式
+            withdrawInput.addEventListener('input', syncRetirementRadio);
+        }
+    });
 
     document.addEventListener("DOMContentLoaded", function() {
       const cap = document.getElementById("capacity_amout");
