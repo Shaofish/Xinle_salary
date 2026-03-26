@@ -20,7 +20,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '410770357=='  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -1019,14 +1019,24 @@ def add_select_month(employee_id):
     cur = mysql.connection.cursor()
     cur.execute("SELECT employee_name, employee_onboard FROM employee_info WHERE employee_id = %s", (employee_id,))
     employee = cur.fetchone()
-    cur.close()
-
     if not employee:
+        cur.close()
         flash("找不到該員工資料", "danger")
         return redirect(url_for('employee_list'))
+    # ✨ 新增：取得該員工已經在資料庫中的所有薪資月份
+    cur.execute("SELECT `year_month` FROM employee_salary WHERE employee_id = %s", (employee_id,))
+    existing_records = cur.fetchall()
+    cur.close()
+    # 將已存在的月份存入 Set 中，方便後續快速比對 (例如: {'202601', '202602'})
+    existing_months = set()
+    for row in existing_records:
+        # 兼容 dict 或 tuple 的回傳格式
+        ym = row.get('year_month') if isinstance(row, dict) else row[0]
+        if ym:
+            existing_months.add(str(ym))
     
     # 1. 設定起始日 (Start Date) = 入職日
-    onboard_date = employee.get('employee_onboard')
+    onboard_date = employee.get('employee_onboard') if isinstance(employee, dict) else employee[1]
     if onboard_date:
         if isinstance(onboard_date, datetime):
             onboard_date = onboard_date.date()
@@ -1047,11 +1057,14 @@ def add_select_month(employee_id):
     while current_date <= end_date:
         y_str = str(current_date.year)
         m_int = current_date.month
+        ym_str = f"{y_str}{m_int:02d}"
         
-        if y_str not in available_months_by_year:
-            available_months_by_year[y_str] = []
-        
-        available_months_by_year[y_str].append(m_int) 
+        # ✨ 關鍵過濾：如果該月份「不在」已存在的清單中，才加入到前端的下拉選單裡
+        if ym_str not in existing_months:
+            if y_str not in available_months_by_year:
+                available_months_by_year[y_str] = []
+            
+            available_months_by_year[y_str].append(m_int)
         # 往後推一個月
         current_date += relativedelta(months=1)
 
@@ -1064,6 +1077,10 @@ def add_select_month(employee_id):
         selected_month = request.form.get('month')
         if selected_year and selected_month:
             year_month = f"{selected_year}{int(selected_month):02d}"
+            # 後端雙重防呆驗證 (避免有人竄改前端 HTML 送出)
+            if year_month in existing_months:
+                flash(f"錯誤：{year_month} 的薪資資料已存在，請透過「編輯薪資」功能進行修改。", "danger")
+                return redirect(request.url)
             # 重導向到編輯頁面
             return redirect(url_for('edit_salary_tabs', employee_id=employee_id, year_month=year_month, action='add'))
 
