@@ -20,7 +20,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = '410770167'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -263,8 +263,8 @@ column_mapping = {
     'travel_allowance': '旅遊津貼',
     'check_up': '體檢補助',
     'training_fee': '教育訓練費',
+    'new_case_allowance': '開發新案獎金',
     'teaching_subsidy': '教學補助費',
-    'new_case_allowance': '新案補助費',
     'extras': '其他項目 1',
     'extras_amout': '其他金額 1',
     'extras2': '其他項目 2',
@@ -280,8 +280,8 @@ column_mapping = {
     'company_health': '公司健保費', 
     'company_retire': '公司退休金',
     'retirement_plan_withdraw': '勞退自提',
-    'home_caregiver_insurance': '家庭照顧險',
-    'group_accident_insurance': '團險',
+    'home_caregiver_insurance': '照服員險',
+    'group_accident_insurance': '團體意外險',
     'additional_withholding_items': '額外代扣項目 1',
     'additional_withholding_amout': '額外代扣金額 1',
     'additional_withholding2_items': '額外代扣項目 2',
@@ -1579,7 +1579,6 @@ def download_health_insurance_template():
     
 
 # ====== 健保級距管理路由 ======
-# ====== 健保級距管理路由 (最終穩定版) ======
 @app.route('/health_insurance_level_manage', methods=['GET', 'POST'])
 @login_required
 def health_insurance_level_manage():

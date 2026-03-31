@@ -328,52 +328,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // --- 頁籤切換邏輯 ---
-    function showTab(btn, tabName) {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.nav-link-custom').forEach(n => n.classList.remove('active'));
-        document.getElementById(tabName).classList.add('active');
-        btn.classList.add('active');
-    }
+    // ==========================================
+    // 1. 資料抓取區 (AJAX Fetch) - 解決「顯示讀取中」的問題
+    // ==========================================
 
-    // --- 計算拆帳金額 ---
-    function calculateSplit() {
-        const cap = document.getElementById("capacity_amout");
-        const spl = document.getElementById("Split_amount");
-        if (cap && spl) {
-            const capVal = parseFloat(cap.value) || 0;
-            // 若產能大於 0 (或已經有數值)，自動計算 60% 帶入拆帳金額
-            if (capVal > 0) {
-                spl.value = Math.round(capVal * 0.6);
-            }
-        }
-    }
-
-    // ✨ 修正後的初始化邏輯 ✨
-    window.onload = async function() {
-        // 1. 從 Jinja2 變數抓取選定的月份 (例如 "202601") 並提取前 4 位數作為年份
-        const selectedMonth = "{{ selected_month }}"; 
-        const currentYear = selectedMonth.toString().substring(0, 4);
-        
-        console.log("正在加載年份級距：" + currentYear);
-
-        // 2. 呼叫時務必傳入年份
-        await loadLaborInsuranceLevels(currentYear);
-        await loadHealthInsuranceLevels(currentYear);
-        
-        attachCheckupAutoFill();
-        calculateTotalHours();
-        calculateSplit(); 
-        if (window.calcPerformanceBonus) window.calcPerformanceBonus();
-        syncRetirementRadio();
-    };
-
-    // --- 勞保級距邏輯 (新增 year 參數) ---
+    // 抓取勞保級距
     async function loadLaborInsuranceLevels(year) {
         const select = document.getElementById('insuranceRange');
+        if (!select) return;
         const savedGrade = document.getElementById('total_payment_insure_grade').value;
         try {
-            // ✨ 指向帶有年份的 API 路徑
             const res = await fetch(`/get_labor_insurance_levels/${year}`);
             const levels = await res.json();
             
@@ -386,34 +350,23 @@
             levels.forEach(l => {
                 const opt = document.createElement('option');
                 opt.value = JSON.stringify(l);
-                opt.textContent = l.range;
-                if (String(l.range) === String(savedGrade)) opt.selected = true;
+                opt.textContent = l.range || l.Range;
+                if (String(l.range || l.Range) === String(savedGrade)) opt.selected = true;
                 select.appendChild(opt);
             });
             if (select.value) updateLaborInsurance(select.value);
         } catch(e) { 
-            console.error("勞保級距載入失敗:", e);
+            console.error("勞保載入失敗:", e);
             select.innerHTML = '<option value="">級距載入失敗</option>';
         }
     }
 
-    function updateLaborInsurance(json) {
-      if (!json) return;
-      const l = JSON.parse(json);
-      document.getElementById('total_payment_insure_grade').value = l.range;
-      document.getElementById('Labor_premiums').value = l.employee_labor;
-      document.getElementById('company_labor').value = l.company_labor;
-      document.getElementById('company_occu').value = l.company_occu;
-      document.getElementById('company_retire').value = l.company_retire;
-      syncRetirementRadio();
-    }
-
-    // --- 健保級距邏輯 (新增 year 參數) ---
+    // 抓取健保級距
     async function loadHealthInsuranceLevels(year) {
         const select = document.getElementById('healthInsuranceRange');
+        if (!select) return;
         const savedGrade = document.getElementById('health_insure_grade').value;
         try {
-            // ✨ 指向帶有年份的 API 路徑
             const res = await fetch(`/get_health_insurance_levels/${year}`);
             const levels = await res.json();
 
@@ -426,165 +379,225 @@
             levels.forEach(l => {
                 const opt = document.createElement('option');
                 opt.value = JSON.stringify(l);
-                opt.textContent = l.Range;
-                if (String(l.Range) === String(savedGrade)) opt.selected = true;
+                opt.textContent = l.Range || l.range;
+                if (String(l.Range || l.range) === String(savedGrade)) opt.selected = true;
                 select.appendChild(opt);
             });
             if (select.value) updateHealthInsurance(select.value);
         } catch(e) { 
-            console.error("健保級距載入失敗:", e);
+            console.error("健保載入失敗:", e);
             select.innerHTML = '<option value="">級距載入失敗</option>';
         }
     }
 
+    // ==========================================
+    // 2. 數值更新與計算邏輯
+    // ==========================================
+
+    function updateLaborInsurance(json) {
+        if (!json) return;
+        const l = JSON.parse(json);
+        document.getElementById('total_payment_insure_grade').value = l.range || l.Range;
+        document.getElementById('Labor_premiums').value = l.employee_labor;
+        document.getElementById('company_labor').value = l.company_labor;
+        document.getElementById('company_occu').value = l.company_occu;
+        document.getElementById('company_retire').value = l.company_retire;
+        syncRetirementRadio();
+    }
+
     function updateHealthInsurance(json) {
-      if (!json) return;
-      const l = JSON.parse(json);
-      document.getElementById('health_insure_grade').value = l.Range;
-      document.getElementById('company_health').value = l.company_health;
+        if (!json) return;
+        try {
+            const l = JSON.parse(json);
+            console.log("--- 健保計算偵錯開始 ---");
+            console.log("1. 級距原始資料:", l);
 
-      const q = parseInt(document.getElementById('employee_qualification').value || '0');
-      const s = parseInt(document.getElementById('employee_subsidy').value || '0');
-      const s0 = parseInt(document.getElementById('employee_subsidy_none').value || '0');
-      const s1 = parseInt(document.getElementById('employee_subsidy_half').value || '0');
-      const s2 = parseInt(document.getElementById('employee_subsidy_full').value || '0');
+            // 設定級距名稱與單位負擔
+            document.getElementById('health_insure_grade').value = l.Range || l.range;
+            document.getElementById('company_health').value = l.company_health || 0;
 
-      const res = calculateHealthInsurance(l, q, s, s0, s1, s2);
-      document.getElementById('Insurance_amount').value = res.totalEmployeePay;
-      const detail = document.getElementById('health_insurance_detail');
-      document.getElementById('health_calculation_text').innerHTML = res.calculationSteps.join('<br>');
-      detail.style.display = 'block';
+            // 2. 檢查眷屬人數抓取
+            const qEl = document.getElementById('employee_qualification');
+            let q = parseInt(qEl ? qEl.value : '0');
+            console.log("2. 抓取到的眷屬人數 (q):", q);
+            if (q > 3) q = 3; 
+
+            // 3. 檢查補助資格
+            const sEl = document.getElementById('employee_subsidy');
+            const s = parseInt(sEl ? sEl.value : '0');
+            console.log("3. 抓取到的補助資格 (s):", s);
+
+            // 4. 定義欄位名稱對照 (請務必確認資料庫裡是小寫還是首字母大寫)
+            // 這裡我們同時檢查兩種可能
+            const fieldMapping = {
+                0: 'employee_and0',
+                1: 'employee_and1',
+                2: 'employee_and2',
+                3: 'employee_and3'
+            };
+            
+            const targetField = fieldMapping[q];
+            console.log("4. 預計抓取的欄位名稱:", targetField);
+
+            // 5. 抓取金額 (增加容錯處理)
+            let baseAmount = l[targetField];
+            
+            // 如果抓不到，嘗試看看有沒有首字母大寫的可能 (例如 Employee_and0)
+            if (baseAmount === undefined) {
+                const altField = targetField.charAt(0).toUpperCase() + targetField.slice(1);
+                baseAmount = l[altField];
+                if (baseAmount !== undefined) console.log("⚠️ 偵測到欄位為大寫開頭，已自動修正抓取");
+            }
+
+            console.log("5. 抓取到的原始金額 (baseAmount):", baseAmount);
+
+            let finalAmount = parseFloat(baseAmount) || 0;
+
+            // 6. 補助邏輯處理
+            if (s == 5) {
+                finalAmount = 0;
+                console.log("6. 觸發全額補助，金額歸 0");
+            } else if (s == 2) {
+                finalAmount = Math.floor(finalAmount * 0.5);
+                console.log("6. 觸發 1/2 補助，減半後金額:", finalAmount);
+            }
+
+            // 7. 填入輸入框
+            const insuranceInput = document.getElementById('Insurance_amount');
+            if (insuranceInput) {
+                insuranceInput.value = finalAmount;
+                console.log("7. 最終寫入自付額欄位:", finalAmount);
+            } else {
+                console.error("❌ 找不到 ID 為 Insurance_amount 的輸入框");
+            }
+
+            // 8. 更新明細文字
+            const detail = document.getElementById('health_insurance_detail');
+            const detailText = document.getElementById('health_calculation_text');
+            if (detail && detailText) {
+                detailText.innerHTML = `人數：本人 + ${q} 眷屬 | 基準金額：${baseAmount || 0} 元<br><strong>應收總計：${finalAmount} 元</strong>`;
+                detail.style.display = 'block';
+            }
+
+            console.log("--- 健保計算偵錯結束 ---");
+        } catch (e) {
+            console.error("❌ 健保函式執行崩潰:", e);
+        }
     }
 
-    function calculateHealthInsurance(l, q, s, s0, s1, s2) {
-      const base = l.employee_and0 || 0;
-      let total = 0, steps = [];
-      let self = 0;
-      if (s == 0) self = base;
-      else if (s == 2) self = Math.floor(base / 2);
-      else if (s == 4) self = Math.floor(base * 0.75);
-      else if (s == 5) self = 0;
-      total += self;
-      steps.push(`本人: ${self} 元`);
-      const deps = Math.min(q, 3);
-      if (s0 > 0) { let c = Math.min(s0, deps); total += (base * c); steps.push(`眷屬(無補助) x ${c} 人: ${base*c} 元`); }
-      if (s1 > 0) { let c = Math.min(s1, deps); let h = Math.floor(base/2); total += (h * c); steps.push(`眷屬(1/2補助) x ${c} 人: ${h*c} 元`); }
-      steps.push(`<strong>計算總額: ${total} 元</strong>`);
-      return { totalEmployeePay: total, calculationSteps: steps };
+    function calculateTotalHours() {
+        const ids = ["daily_work_hr","holiday_work_hr","transition_hr","Overtime_pay_weekdays910hr","Overtime_pay_weekdays1112hr","Overtime_pay_rest_days12hr","Overtime_pay_rest_days38hr","holiday_overtime_hr","National_holidays_hr"];
+        const total = ids.reduce((sum, id) => {
+            const el = document.getElementById(id);
+            return sum + (el ? parseFloat(el.value || 0) : 0);
+        }, 0);
+        const target = document.getElementById("total_hours");
+        if (target) target.value = total.toFixed(2);
     }
 
-    // --- 自動填寫健檢 ---
-    function attachCheckupAutoFill() {
-      const chk = document.getElementById('enable_checkup');
-      const hrs = document.getElementById('last_three_month_hours');
-      const target = document.getElementById('check_up');
-      const isOneYear = {{ 'true' if one_year_passed else 'false' }};
-      const update = () => {
-        if (!chk.checked) { target.value = 0; return; }
-        const h = parseFloat(hrs.value || 0);
-        if (isOneYear && h >= 131) target.value = 1200;
-        else if (isOneYear && h >= 90) target.value = 600;
-        else target.value = 300;
-      };
-      chk.addEventListener('change', update);
-      hrs.addEventListener('input', update);
+    function calculateSplit() {
+        const cap = document.getElementById("capacity_amout");
+        const spl = document.getElementById("Split_amount");
+        if (cap && spl) {
+            const capVal = parseFloat(cap.value) || 0;
+            if (capVal > 0) spl.value = Math.round(capVal * 0.6);
+        }
     }
 
-// --- 計算勞退自提金額 ---
+    function calcPerformanceBonus() {
+        const get = n => {
+            const el = document.querySelector(`input[name='${n}']`) || document.getElementById(n);
+            return parseFloat(el ? el.value : 0) || 0;
+        };
+        const split = get('Split_amount');
+        const ot = get('total_overtime_pay_weekdays') + get('total_overtime_pay_restdays') + get('total_pay_holidays') + get('total_pay_national_holidays');
+        const perf = split - ((get('daily_work_hr') * 200) + get('transition_allowance') + ot + get('duty_allowance'));
+        if (document.getElementById("Performance_bonuses")) document.getElementById("Performance_bonuses").value = perf.toFixed(2);
+        const aa09Input = document.getElementById("AA09_bonus");
+        const av = get('AA09_bonus_view');
+        if (aa09Input) aa09Input.value = (perf < 0 ? (av + perf) : av).toFixed(2);
+    }
+
+    function recalcLeave() {
+        const days = parseFloat(document.getElementById("leave_days")?.value || 0);
+        const taken = parseFloat(document.getElementById("leave_taken_days")?.value || 0);
+        const annual = parseFloat(document.getElementById("annual_total_hours")?.value || 0);
+        const service = parseFloat(document.getElementById("total_service_hours")?.value || 0);
+        const remain = days - taken;
+        if (document.getElementById("leave_hours_per_day")) document.getElementById("leave_hours_per_day").value = remain > 0 ? (annual / remain).toFixed(2) : 0;
+        const payDays = annual > 0 ? (service * remain / annual) : 0;
+        if (document.getElementById("leave_pay_days")) document.getElementById("leave_pay_days").value = payDays.toFixed(2);
+        if (document.getElementById("leave_deduction_amount")) document.getElementById("leave_deduction_amount").value = Math.round(payDays * 1600);
+    }
+
+    function syncRetirementRadio() {
+        const val = parseFloat(document.getElementById('retirement_plan_withdraw')?.value) || 0;
+        const grade = parseFloat(document.getElementById('total_payment_insure_grade')?.value) || 0;
+        const r0 = document.getElementById('radio_0');
+        const r6 = document.getElementById('radio_6');
+        if (r0 && r6) {
+            r0.checked = (val === 0);
+            r6.checked = (grade > 0 && val === Math.round(grade * 0.06));
+        }
+    }
+
     function calcRetirement(percent) {
-        const gradeInput = document.getElementById('total_payment_insure_grade');
+        const gradeVal = parseFloat(document.getElementById('total_payment_insure_grade').value) || 0;
         const withdrawInput = document.getElementById('retirement_plan_withdraw');
-        
-        if (!gradeInput || !withdrawInput) return;
-        
-        const gradeValue = parseFloat(gradeInput.value) || 0;
-        if (gradeValue === 0) {
-            alert('請先在上方選擇「勞保投保級距」後再計算！');
-            document.getElementById('radio_' + percent).checked = false; // 恢復未勾選
+        if (gradeVal === 0) {
+            alert('請先選擇「勞保投保級距」！');
+            if (document.getElementById('radio_' + percent)) document.getElementById('radio_' + percent).checked = false;
             return;
         }
-
-        if (percent === 0) {
-            withdrawInput.value = 0;
-        } else if (percent === 6) {
-            withdrawInput.value = Math.round(gradeValue * 0.06);
-        }
+        withdrawInput.value = percent === 0 ? 0 : Math.round(gradeVal * (percent / 100));
     }
 
-    // --- ✨ 自動同步判斷 0% 或 6% 勾選狀態 ---
-    function syncRetirementRadio() {
-        const withdrawInput = document.getElementById('retirement_plan_withdraw');
-        const gradeInput = document.getElementById('total_payment_insure_grade');
-        const radio0 = document.getElementById('radio_0');
-        const radio6 = document.getElementById('radio_6');
-
-        if (!withdrawInput || !radio0 || !radio6) return;
-
-        const currentValue = withdrawInput.value.trim();
-        const gradeValue = gradeInput ? parseFloat(gradeInput.value) || 0 : 0;
-
-        // 預設先清空勾選
-        radio0.checked = false;
-        radio6.checked = false;
-
-        if (currentValue === "") return; // 空白不勾選
-
-        const numValue = parseFloat(currentValue);
-
-        // 如果數字是 0 就亮 0%；如果數字剛好等於級距的 6% 就亮 6%
-        if (numValue === 0) {
-            radio0.checked = true;
-        } else if (gradeValue > 0 && numValue === Math.round(gradeValue * 0.06)) {
-            radio6.checked = true;
-        }
+    function showTab(btn, tabName) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.nav-link-custom').forEach(n => n.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        btn.classList.add('active');
     }
-    // 當使用者手動修改勞退輸入框的數字時，自動清除 0% 或 6% 的圓圈勾選狀態
-    document.addEventListener("DOMContentLoaded", function() {
-        const withdrawInput = document.getElementById('retirement_plan_withdraw');
-        if (withdrawInput) {
-            // 當使用者在輸入框打字時，不要無腦取消勾選，而是呼叫智慧判斷函式
-            withdrawInput.addEventListener('input', syncRetirementRadio);
-        }
-    });
 
-    document.addEventListener("DOMContentLoaded", function() {
-      const cap = document.getElementById("capacity_amout");
-      const spl = document.getElementById("Split_amount");
-      cap.addEventListener("input", () => {
-        const calculatedValue = Math.round(cap.value * 0.6);
-        spl.value = calculatedValue; // 自動更新，但因為欄位沒鎖，使用者之後可以改
-        window.calcPerformanceBonus();
-    });
-    spl.addEventListener("input", () => {
-        window.calcPerformanceBonus();
-    });
+    // ==========================================
+    // 3. 初始化與監聽
+    // ==========================================
 
-    window.calcPerformanceBonus = () => {
-    const get = n => parseFloat(document.querySelector(`input[name='${n}']`)?.value || 0);
-    const split = get('Split_amount');
-    const ot = get('total_overtime_pay_weekdays') + get('total_overtime_pay_restdays') + get('total_pay_holidays') + get('total_pay_national_holidays');
-    const perf = split - ((get('daily_work_hr')*200) + get('transition_allowance') + ot + get('duty_allowance'));
-    document.getElementById("Performance_bonuses").value = perf.toFixed(2);
-    const av = get('AA09_bonus_view');
-    document.getElementById("AA09_bonus").value = (perf < 0 ? (av + perf) : av).toFixed(2);
+    window.onload = async function() {
+        const selectedMonth = "{{ selected_month }}"; 
+        const currentYear = selectedMonth.toString().substring(0, 4);
+        // 🔍 這是終極檢查，直接看 Jinja2 吐出來的東西是什麼
+        console.log("Jinja2 渲染檢查 - 眷屬人數: '{{ info.qualification }}'");
+        console.log("Jinja2 渲染檢查 - 補助代碼: '{{ info.subsidy }}'");
+        
+        const qVal = document.getElementById('employee_qualification').value;
+        console.log("DOM 檢查 - 隱藏欄位目前的實際數值是: '" + qVal + "'");
+
+        // 啟動資料抓取
+        await loadLaborInsuranceLevels(currentYear);
+        await loadHealthInsuranceLevels(currentYear);
+        
+        // 執行初始計算
+        calculateTotalHours();
+        calculateSplit(); 
+        calcPerformanceBonus();
+        recalcLeave();
+        syncRetirementRadio();
+        if (typeof attachCheckupAutoFill === 'function') attachCheckupAutoFill();
     };
 
-    document.querySelectorAll("input").forEach(i => i.addEventListener("input", window.calcPerformanceBonus));
-    
-    const recalcLeave = () => {
-    const days = parseFloat(document.getElementById("leave_days").value || 0);
-    const taken = parseFloat(document.getElementById("leave_taken_days").value || 0);
-    const annual = parseFloat(document.getElementById("annual_total_hours").value || 0);
-    const service = parseFloat(document.getElementById("total_service_hours").value || 0);
-    const remain = days - taken;
-    document.getElementById("leave_hours_per_day").value = remain > 0 ? (annual/remain).toFixed(2) : 0;
-    const payDays = annual > 0 ? (service * remain / annual) : 0;
-    document.getElementById("leave_pay_days").value = payDays.toFixed(2);
-    document.getElementById("leave_deduction_amount").value = Math.round(payDays * 1600);
-    };
-    ["leave_days","leave_taken_days","annual_total_hours","total_service_hours"].forEach(id => document.getElementById(id).addEventListener("input", recalcLeave));
+    document.addEventListener("DOMContentLoaded", function() {
+        document.querySelectorAll("input").forEach(input => {
+            input.addEventListener("input", () => {
+                if (input.id === "capacity_amout") calculateSplit();
+                calculateTotalHours();
+                calcPerformanceBonus();
+                recalcLeave();
+                if (input.id === "retirement_plan_withdraw") syncRetirementRadio();
+            });
+        });
     });
 
     function validateForm() { return true; }
-  </script>
+</script>
 {% endblock %}

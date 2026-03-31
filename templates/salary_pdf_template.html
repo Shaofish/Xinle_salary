@@ -136,14 +136,14 @@
                 <tr class="bg-gray">
                     <td class="center">勞保級距</td>
                     <td class="center">{{ row['勞保級距'] }}</td>
-                    <td class="center">公司負擔勞保</td>
-                    <td class="center">{{ row['公司負擔勞保']|int }}</td>
+                    <td class="center">公司負擔勞保 + 職保</td>
+                    <td class="center">{{ row['公司負擔勞保 + 職保']|int }}</td>
                 </tr>
                 <tr class="bg-gray">
-                    <td class="center">公司負擔職保</td>
-                    <td class="center">{{ row['公司負擔職保']|int }}</td>
                     <td class="center">公司負擔健保</td>
                     <td class="center">{{ row['公司負擔健保']|int }}</td>
+                    <td class="center">公司負擔勞退</td>
+                    <td class="center">{{ row['公司負擔勞退']|int }}</td>
                 </tr>
 
                 <tr>
