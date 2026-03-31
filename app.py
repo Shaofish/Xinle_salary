@@ -20,7 +20,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '410770167'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -1767,55 +1767,91 @@ def import_history_process():
         return redirect(request.url)
 
     try:
-        # 讀取 Excel
+        # 1. 讀取 Excel 並處理標題對應
         df = pd.read_excel(file)
-        
-        # 將中文標題轉回資料庫英文欄位名
         reverse_mapping = {v: k for k, v in column_mapping.items()}
         df.rename(columns=reverse_mapping, inplace=True)
 
         cur = mysql.connection.cursor()
         
-        # 獲取資料庫真正存在的欄位清單
+        # 獲取資料庫欄位清單
         cur.execute("DESCRIBE `employee_salary`")
         desc_result = cur.fetchall()
         db_columns = [row['Field'] if isinstance(row, dict) else row[0] for row in desc_result]
         
         success_count = 0
-        skipped_ids = []  # ✨ 改用列表紀錄找不到的 ID
+        skipped_ids = []
 
         for index, row in df.iterrows():
             employee_id = str(row.get('employee_id', '')).strip()
+            year_month_raw = str(row.get('year_month', '')).replace('.0', '')
             
-            if not employee_id or employee_id == '0' or employee_id == 'nan':
+            if not employee_id or employee_id == 'nan' or not year_month_raw:
                 continue
 
-            # 確保員工編號存在於系統中
-            cur.execute("SELECT employee_id FROM employee_info WHERE employee_id = %s", (employee_id,))
-            if not cur.fetchone():
-                skipped_ids.append(employee_id)  # ✨ 紀錄錯誤的 ID
+            # 2. 獲取該員工的基本身分資訊 (用於保險計算)
+            cur.execute("""
+                SELECT qualification, subsidy FROM employee_info 
+                WHERE employee_id = %s
+            """, (employee_id,))
+            emp_info = cur.fetchone()
+            
+            if not emp_info:
+                skipped_ids.append(employee_id)
                 continue
             
-            # 準備匯入資料並處理空值
+            # 解析年份 (例如 202405 -> 2024)
+            year = int(year_month_raw[:4])
+
+            # 3. 準備基礎數據與處理空值
             import_data = {}
             for k, v in row.to_dict().items():
                 if k in db_columns:
                     if pd.isnull(v):
-                        # 判斷是否為數字欄位
                         import_data[k] = 0 if any(x in k.lower() for x in ['hr', 'bonus', 'amout', 'amount', 'salary', 'grade']) else None
                     else:
                         import_data[k] = v
             
-            if not import_data:
-                continue
+            # 4. 🌟 核心補值邏輯：自動查表填入「公司負擔」相關欄位
+            
+            # (A) 勞保、職保、勞退 6% 補值
+            labor_grade = safe_int(import_data.get('total_payment_insure_grade', 0))
+            if labor_grade > 0:
+                labor_res = get_full_labor_details(cur, labor_grade, year)
+                if labor_res:
+                    # 如果 Excel 中的自付額是 0，則從級距表補回
+                    if safe_int(import_data.get('Labor_premiums', 0)) == 0:
+                        import_data['Labor_premiums'] = labor_res.get('employee_labor', 0)
+                    
+                    # 強制填入公司負擔額
+                    import_data['company_labor'] = labor_res.get('company_labor', 0)
+                    import_data['company_occu'] = labor_res.get('company_occu', 0)
+                    import_data['company_retire'] = labor_res.get('company_retire', 0)
+
+            # (B) 健保公出補值
+            health_grade = safe_int(import_data.get('health_insure_grade', 0))
+            if health_grade > 0:
+                health_res = get_full_health_details(
+                    cur, health_grade, emp_info['qualification'], emp_info['subsidy'], year
+                )
+                if health_res:
+                    # 如果 Excel 中的自付額是 0，補回算好的自付額
+                    if safe_int(import_data.get('Insurance_amount', 0)) == 0:
+                        import_data['Insurance_amount'] = health_res.get('Insurance_amount', 0)
+                    
+                    # 強制填入單位健保負擔
+                    import_data['company_health'] = health_res.get('company_health', 0)
+
+            # 5. 執行寫入 (包含重複月份更新)
+            if not import_data: continue
 
             fields = list(import_data.keys())
             placeholders = ', '.join(['%s'] * len(fields))
-            columns = ', '.join([f'`{f}`' for f in fields])
+            columns_str = ', '.join([f'`{f}`' for f in fields])
             update_clause = ', '.join([f'`{f}` = VALUES(`{f}`)' for f in fields])
             
             sql = f"""
-                INSERT INTO `employee_salary` ({columns}) 
+                INSERT INTO `employee_salary` ({columns_str}) 
                 VALUES ({placeholders}) 
                 ON DUPLICATE KEY UPDATE {update_clause}
             """
@@ -1826,24 +1862,80 @@ def import_history_process():
         mysql.connection.commit()
         cur.close()
         
-        # --- 組合回饋訊息 ---
-        msg = f'✅ 成功匯入 {success_count} 筆資料。'
-        
+        flash(f'✅ 成功匯入/更新 {success_count} 筆資料。公司負擔額已根據級距表自動補齊。', 'success')
         if skipped_ids:
-            # ✨ 將重複的 ID 去重並轉成字串顯示
-            unique_skipped = list(set(skipped_ids))
-            skipped_str = ", ".join(unique_skipped)
-            msg += f' ⚠️ 注意：以下員工編號在系統中不存在，已跳過：[{skipped_str}]。請檢查員工基本資料是否尚未建立。'
-            flash(msg, 'warning') # 使用 warning 顏色較醒目
-        else:
-            flash(msg, 'success')
+            flash(f'⚠️ 提示：員工編號 {list(set(skipped_ids))} 不存在，已跳過。', 'warning')
         
     except Exception as e:
-        if 'mysql.connection' in locals():
-            mysql.connection.rollback()
-        flash(f'❌ 匯入失敗，原因：{str(e)}', 'danger')
+        if 'cur' in locals(): mysql.connection.rollback()
+        flash(f'❌ 匯入失敗：{str(e)}', 'danger')
 
     return redirect(url_for('user'))
+
+def get_full_labor_details(cursor, grade_val, year):
+    """根據年份與勞保級距，抓取員工自付與單位負擔明細"""
+    try:
+        # 尋找該年份最接近且大於等於該金額的級距
+        cursor.execute("""
+            SELECT `employee_labor`, `company_labor`, `company_occu`, `company_retire`
+            FROM labor_insurance_level 
+            WHERE `range` >= %s AND effective_year = %s 
+            ORDER BY `range` ASC LIMIT 1
+        """, (grade_val, year))
+        res = cursor.fetchone()
+        
+        # 防呆：若該年無資料則抓最新年份
+        if not res:
+            cursor.execute("""
+                SELECT `employee_labor`, `company_labor`, `company_occu`, `company_retire`
+                FROM labor_insurance_level 
+                WHERE `range` >= %s ORDER BY effective_year DESC, `range` ASC LIMIT 1
+            """, (grade_val,))
+            res = cursor.fetchone()
+        return res or {}
+    except Exception as e:
+        print(f"勞保查表失敗: {e}")
+        return {}
+
+def get_full_health_details(cursor, grade_val, dependents, subsidy_type, year):
+    """根據年份與健保級距，計算員工自付額並抓取單位負擔"""
+    try:
+        cursor.execute("""
+            SELECT `employee_and0`, `employee_and1`, `employee_and2`, `employee_and3`, `company_health`
+            FROM health_insurance_level 
+            WHERE `Range` >= %s AND effective_year = %s 
+            ORDER BY `Range` ASC LIMIT 1
+        """, (grade_val, year))
+        res = cursor.fetchone()
+        
+        if not res:
+            cursor.execute("""
+                SELECT `employee_and0`, `employee_and1`, `employee_and2`, `employee_and3`, `company_health`
+                FROM health_insurance_level 
+                WHERE `Range` >= %s ORDER BY effective_year DESC, `Range` ASC LIMIT 1
+            """, (grade_val,))
+            res = cursor.fetchone()
+            
+        if not res: return {}
+
+        # 計算員工自付額 (考慮補助)
+        q = min(int(dependents or 0), 3)
+        base_field = f'employee_and{q}'
+        # 相容大小寫
+        self_pay = res.get(base_field) or res.get(base_field.capitalize()) or 0
+        
+        s = int(subsidy_type or 0)
+        final_self_pay = 0
+        if s == 2: final_self_pay = int(float(self_pay) * 0.5)
+        elif s != 5: final_self_pay = int(self_pay)
+        
+        return {
+            'Insurance_amount': final_self_pay,
+            'company_health': res.get('company_health', 0)
+        }
+    except Exception as e:
+        print(f"健保查表失敗: {e}")
+        return {}
 # ====== 員工保險級距異動歷史查詢 ======
 @app.route('/insurance_history/<employee_id>')
 @login_required
