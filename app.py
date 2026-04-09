@@ -20,7 +20,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = 'gtololol01314'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -432,6 +432,11 @@ def edit_profile(employee_id):
         subsidy_none = safe_int(request.form.get('subsidy_none'))
         subsidy_half = safe_int(request.form.get('subsidy_half'))
         subsidy_full = safe_int(request.form.get('subsidy_full'))
+        # 檢查眷口補助人數總和是否等於投保眷口數
+        total_subsidy_dependents = subsidy_none + subsidy_half + subsidy_full
+        if qualification != total_subsidy_dependents:
+            flash(f'更新失敗：健保眷口設定不符！您選擇投保「{qualification} 名眷口」，但各項補助人數相加為 {total_subsidy_dependents} 人。', 'danger')
+            return redirect(url_for('edit_profile', employee_id=employee_id))
         
         leave_month_input = request.form.get('leave_payment_month_of_year')
         if not leave_month_input or leave_month_input.strip() == "":
