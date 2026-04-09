@@ -180,19 +180,6 @@
 
     <div id="bonus" class="tab-content">
       <h3><i class="fa-solid fa-gift"></i> 福利與各項補貼</h3>
-      <div class="row bg-warning-subtle p-3 rounded mb-4 border shadow-sm">
-          <div class="col-md-6">
-              <div class="form-check form-switch mt-2">
-                  <input type="checkbox" class="form-check-input" id="enable_checkup" name="enable_checkup" value="1" style="width: 60px; height: 30px;" {% if salary.check_up|int > 0 %}checked{% endif %}>
-                  <label for="enable_checkup" class="form-check-label ms-3 fw-bold">啟用本月健檢補助</label>
-              </div>
-          </div>
-          <div class="col-md-6">
-              <label class="form-label">健檢補助金額：</label>
-              <input name="check_up" id="check_up" value="{{ salary.check_up }}" class="form-control readonly-field" readonly>
-          </div>
-      </div>
-
       <div class="row">
           {% for f,label in [('licence_allowance','單一證照津貼'),('holiday_bonus','三節節慶獎金'),('birthday_bonus','生日祝賀禮金'),('referral_fee','員工介紹費'),('travel_allowance','員工旅遊津貼'),('training_fee','教育訓練補助'),('teaching_subsidy','教學指導補助'),('new_case_allowance','新案補助費')] %}
           <div class="col-md-4 field-group">
@@ -261,6 +248,18 @@
       <div class="bg-light p-4 rounded border mt-4">
           <label class="form-label">近三個月平均服務時數 (健檢/補助判斷)：</label>
           <input type="number" id="last_three_month_hours" name="last_three_month_hours" class="form-control w-50" placeholder="請輸入平均時數">
+      </div>
+      <div class="row bg-warning-subtle p-3 rounded mb-4 border shadow-sm">
+          <div class="col-md-6">
+              <div class="form-check form-switch mt-2">
+                  <input type="checkbox" class="form-check-input" id="enable_checkup" name="enable_checkup" value="1" style="width: 60px; height: 30px;" {% if salary.check_up|int > 0 %}checked{% endif %}>
+                  <label for="enable_checkup" class="form-check-label ms-3 fw-bold">啟用本月健檢補助</label>
+              </div>
+          </div>
+          <div class="col-md-6">
+              <label class="form-label">健檢補助金額：</label>
+              <input name="check_up" id="check_up" value="{{ salary.check_up }}" class="form-control readonly-field" readonly>
+          </div>
       </div>
 
       <div class="row mt-4">
@@ -409,80 +408,90 @@
         if (!json) return;
         try {
             const l = JSON.parse(json);
-            console.log("--- 健保計算偵錯開始 ---");
-            console.log("1. 級距原始資料:", l);
-
-            // 設定級距名稱與單位負擔
+            
+            // 1. 設定級距名稱與單位負擔
             document.getElementById('health_insure_grade').value = l.Range || l.range;
             document.getElementById('company_health').value = l.company_health || 0;
 
-            // 2. 檢查眷屬人數抓取
-            const qEl = document.getElementById('employee_qualification');
-            let q = parseInt(qEl ? qEl.value : '0');
-            console.log("2. 抓取到的眷屬人數 (q):", q);
-            if (q > 3) q = 3; 
+            // 2. 抓取投保人數與各項補助 (這裡非常關鍵，必須全部抓到)
+            const q = parseInt(document.getElementById('employee_qualification')?.value || '0');
+            const s = parseInt(document.getElementById('employee_subsidy')?.value || '0');
+            const s0 = parseInt(document.getElementById('employee_subsidy_none')?.value || '0');
+            const s1 = parseInt(document.getElementById('employee_subsidy_half')?.value || '0');
+            const s2 = parseInt(document.getElementById('employee_subsidy_full')?.value || '0');
 
-            // 3. 檢查補助資格
-            const sEl = document.getElementById('employee_subsidy');
-            const s = parseInt(sEl ? sEl.value : '0');
-            console.log("3. 抓取到的補助資格 (s):", s);
+            // 3. 呼叫精算引擎計算結果
+            const res = calculateHealthInsurance(l, q, s, s0, s1, s2);
 
-            // 4. 定義欄位名稱對照 (請務必確認資料庫裡是小寫還是首字母大寫)
-            // 這裡我們同時檢查兩種可能
-            const fieldMapping = {
-                0: 'employee_and0',
-                1: 'employee_and1',
-                2: 'employee_and2',
-                3: 'employee_and3'
-            };
-            
-            const targetField = fieldMapping[q];
-            console.log("4. 預計抓取的欄位名稱:", targetField);
-
-            // 5. 抓取金額 (增加容錯處理)
-            let baseAmount = l[targetField];
-            
-            // 如果抓不到，嘗試看看有沒有首字母大寫的可能 (例如 Employee_and0)
-            if (baseAmount === undefined) {
-                const altField = targetField.charAt(0).toUpperCase() + targetField.slice(1);
-                baseAmount = l[altField];
-                if (baseAmount !== undefined) console.log("⚠️ 偵測到欄位為大寫開頭，已自動修正抓取");
-            }
-
-            console.log("5. 抓取到的原始金額 (baseAmount):", baseAmount);
-
-            let finalAmount = parseFloat(baseAmount) || 0;
-
-            // 6. 補助邏輯處理
-            if (s == 5) {
-                finalAmount = 0;
-                console.log("6. 觸發全額補助，金額歸 0");
-            } else if (s == 2) {
-                finalAmount = Math.floor(finalAmount * 0.5);
-                console.log("6. 觸發 1/2 補助，減半後金額:", finalAmount);
-            }
-
-            // 7. 填入輸入框
+            // 4. 填入輸入框
             const insuranceInput = document.getElementById('Insurance_amount');
             if (insuranceInput) {
-                insuranceInput.value = finalAmount;
-                console.log("7. 最終寫入自付額欄位:", finalAmount);
-            } else {
-                console.error("❌ 找不到 ID 為 Insurance_amount 的輸入框");
+                insuranceInput.value = res.totalEmployeePay;
             }
 
-            // 8. 更新明細文字
+            // 5. 更新明細文字
             const detail = document.getElementById('health_insurance_detail');
             const detailText = document.getElementById('health_calculation_text');
             if (detail && detailText) {
-                detailText.innerHTML = `人數：本人 + ${q} 眷屬 | 基準金額：${baseAmount || 0} 元<br><strong>應收總計：${finalAmount} 元</strong>`;
+                detailText.innerHTML = res.calculationSteps.join('<br>');
                 detail.style.display = 'block';
             }
 
-            console.log("--- 健保計算偵錯結束 ---");
         } catch (e) {
-            console.error("❌ 健保函式執行崩潰:", e);
+            console.error("❌ 健保計算失敗:", e);
         }
+    }
+
+    // ✨ 健保精算引擎：負責處理各種複雜的眷屬與補助組合
+    function calculateHealthInsurance(l, q, s, s0, s1, s2) {
+        // 健保的計算基礎是「單一個人」的保費，所以我們統一抓 employee_and0 (本人) 的金額來當基數
+        let base = parseFloat(l.employee_and0) || parseFloat(l.Employee_and0) || 0;
+        let total = 0;
+        let steps = [];
+
+        // --- 第一步：計算【本人】的保費 ---
+        let selfPay = base;
+        let selfDesc = "無補助";
+        
+        if (s === 5) { selfPay = 0; selfDesc = "全額補助"; }
+        else if (s === 2) { selfPay = Math.round(base / 2); selfDesc = "1/2補助"; }
+
+        total += selfPay;
+        steps.push(`本人 (${selfDesc}): ${selfPay} 元`);
+
+        // --- 第二步：計算【眷屬】的保費 ---
+        let billable_dependents = Math.min(q, 3);
+        
+        // 1. 優先計算「無補助」的眷屬 (收全額)
+        if (s0 > 0 && billable_dependents > 0) {
+            let count = Math.min(s0, billable_dependents);
+            let pay = base * count;
+            total += pay;
+            steps.push(`眷屬 (無補助) x ${count} 人: ${pay} 元`);
+            billable_dependents -= count; // 扣掉已收費的名額
+        }
+
+        // 2. 再計算「半額補助」的眷屬
+        if (s1 > 0 && billable_dependents > 0) {
+            let count = Math.min(s1, billable_dependents);
+            let halfBase = Math.round(base / 2); 
+            let pay = halfBase * count;
+            total += pay;
+            steps.push(`眷屬 (1/2補助) x ${count} 人: ${pay} 元`);
+            billable_dependents -= count; // 扣掉已收費的名額
+        }
+
+        // 3. 全額補助的眷屬 (不用錢，但列出明細讓員工清楚)
+        if (s2 > 0) {
+            steps.push(`眷屬 (全額補助) x ${s2} 人: 0 元`);
+        }
+
+        steps.push(`<strong>應收總計: ${total} 元</strong>`);
+        
+        return { 
+            totalEmployeePay: total, 
+            calculationSteps: steps 
+        };
     }
 
     function calculateTotalHours() {
