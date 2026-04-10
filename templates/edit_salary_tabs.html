@@ -264,8 +264,10 @@
 
       <div class="bg-light p-4 rounded border mt-4">
           <label class="form-label">近三個月平均服務時數 (健檢/補助判斷)：</label>
-          <input type="number" id="last_three_month_hours" name="last_three_month_hours" class="form-control w-50" placeholder="請輸入平均時數">
+          <input type="number" step="any" id="last_three_month_hours" name="last_three_month_hours" 
+                 class="form-control w-50 readonly-field" readonly placeholder="系統即時計算中...">
       </div>
+
       <div class="row bg-warning-subtle p-3 rounded mb-4 border shadow-sm">
           <div class="col-md-6">
               <div class="form-check form-switch mt-2">
@@ -635,6 +637,29 @@
         withdrawInput.value = percent === 0 ? 0 : Math.round(gradeVal * (percent / 100));
     }
 
+    // 即時計算包含當月的「近三個月平均時數」
+    function calcAverageHours() {
+        // 1. 抓取隱藏欄位中，後端算好的「前兩個月總和」
+        const pastTwoMonths = parseFloat(document.getElementById('past_two_months_hours')?.value) || 0;
+        
+        // 2. 抓取畫面上「當月」正在輸入的時數
+        const currentDaily = parseFloat(document.getElementById('daily_work_hr')?.value) || 0;
+        const currentHoliday = parseFloat(document.getElementById('holiday_work_hr')?.value) || 0;
+        
+        // 3. 計算總和並除以 3 (四捨五入到小數點第二位)
+        const totalHours = pastTwoMonths + currentDaily + currentHoliday;
+        const average = (totalHours / 3).toFixed(2);
+        
+        // 4. 顯示在畫面上
+        const avgInput = document.getElementById('last_three_month_hours');
+        if (avgInput) {
+            avgInput.value = average;
+            
+            // 如果您有「自動勾選健檢」的功能，記得在這邊呼叫它，讓它根據新時數判定
+            if (typeof attachCheckupAutoFill === 'function') attachCheckupAutoFill();
+        }
+    }
+
     function showTab(btn, tabName) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-link-custom').forEach(n => n.classList.remove('active'));
@@ -667,6 +692,7 @@
         recalcLeave();
         syncRetirementRadio();
         syncSplitRadio();
+        calcAverageHours();
         if (typeof attachCheckupAutoFill === 'function') attachCheckupAutoFill();
     };
 
@@ -680,7 +706,7 @@
                 calculateTotalHours();
                 calcPerformanceBonus();
                 recalcLeave();
-
+                if (input.id === "daily_work_hr" || input.id === "holiday_work_hr") {calcAverageHours();}
                 if (input.id === "retirement_plan_withdraw") syncRetirementRadio();
                 if (input.id === "Split_amount") syncSplitRadio();
             });

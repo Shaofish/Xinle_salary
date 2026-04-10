@@ -14,6 +14,7 @@ import json
 from dateutil.relativedelta import relativedelta
 from urllib.parse import quote
 import numpy as np
+import MySQLdb.cursors
 
 app = Flask(__name__)
 
@@ -410,8 +411,6 @@ def add_employee():
 @app.route('/edit_profile/<employee_id>', methods=['GET', 'POST'])
 @login_required
 def edit_profile(employee_id):
-    import MySQLdb.cursors
-    
     if request.method == 'POST':
         # 1. 安全接收資料 (使用 .get 避免 KeyError)
         new_employee_id = request.form.get('employee_id')
@@ -891,6 +890,28 @@ def edit_salary_tabs(employee_id):
             salary['total_payment_insure_grade'] = info.get('labor_insurance_grade', 0)
         if not salary.get('health_insure_grade'):
             salary['health_insure_grade'] = info.get('health_insurance_grade', 0)
+
+    past_months = []
+    # 往前推 1~2 個月 (range 1 到 3 代表產生 1, 2)
+    for i in range(1, 3):
+        past_dt = selected_dt - relativedelta(months=i)
+        past_months.append(int(past_dt.strftime('%Y%m')))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute(
+        """SELECT daily_work_hr, holiday_work_hr 
+           FROM employee_salary 
+           WHERE employee_id = %s AND `year_month` IN (%s, %s)""",
+        (employee_id, past_months[0], past_months[1])
+    )
+    past_records = cursor.fetchall()
+    cursor.close()
+
+    past_two_months_hours = 0
+    for rec in past_records:
+        daily = float(rec.get('daily_work_hr') or 0)
+        holiday = float(rec.get('holiday_work_hr') or 0)
+        past_two_months_hours += (daily + holiday)
     
     # === 特休天數計算（基於到職滿一年當月）===
     one_year_dt = datetime.strptime(str(one_year_month), "%Y%m")
@@ -996,6 +1017,7 @@ def edit_salary_tabs(employee_id):
                             subsidy_none=subsidy_none,
                             subsidy_half=subsidy_half,
                             subsidy_full=subsidy_full,
+                            past_two_months_hours=past_two_months_hours,
                             info=info)  # ✨ 新增 info 傳遞
 
 # ====== 預覽薪資資料 ======
