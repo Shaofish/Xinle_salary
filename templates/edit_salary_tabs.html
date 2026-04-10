@@ -87,8 +87,25 @@
               <input type="number" id="capacity_amout" name="capacity_amout" value="{{ salary.capacity_amout }}" class="form-control" placeholder="請輸入產能金額">
           </div>
           <div class="col-md-6 field-group">
-              <label class="form-label">拆帳金額 (60%)：<span class="info-badge">自動計算</span></label>
-              <input type="number" id="Split_amount" name="Split_amount" value="{{ salary.Split_amount }}" class="form-control readonly-field" >
+              <div class="d-flex justify-content-between align-items-center" style="margin-top: 10px; margin-bottom: 8px;">
+                  <label class="form-label m-0" style="margin-top: 0 !important;">拆帳金額：<span class="info-badge">自動計算</span></label>
+                  
+                  <div class="d-flex align-items-center gap-3">
+                      <label class="d-flex align-items-center m-0" style="cursor: pointer;">
+                          <input type="radio" id="split_60" name="split_radio" onclick="calcSplitRadio(60)" style="width: 20px; height: 20px; margin: 0 6px 0 0; cursor: pointer;"> 
+                          <span class="fw-bold" style="color: #4a5568; font-size: 18px; padding-top: 2px;">60%</span>
+                      </label>
+                      <label class="d-flex align-items-center m-0" style="cursor: pointer;">
+                          <input type="radio" id="split_70" name="split_radio" onclick="calcSplitRadio(70)" style="width: 20px; height: 20px; margin: 0 6px 0 0; cursor: pointer;"> 
+                          <span class="fw-bold" style="color: #2b6cb0; font-size: 18px; padding-top: 2px;">70%</span>
+                      </label>
+                      <label class="d-flex align-items-center m-0" style="cursor: pointer;">
+                          <input type="radio" id="split_80" name="split_radio" onclick="calcSplitRadio(80)" style="width: 20px; height: 20px; margin: 0 6px 0 0; cursor: pointer;"> 
+                          <span class="fw-bold" style="color: #c53030; font-size: 18px; padding-top: 2px;">80%</span>
+                      </label>
+                  </div>
+              </div>
+              <input type="number" id="Split_amount" name="Split_amount" value="{{ salary.Split_amount }}" class="form-control numeric-input">
           </div>
       </div>
 
@@ -507,10 +524,67 @@
     function calculateSplit() {
         const cap = document.getElementById("capacity_amout");
         const spl = document.getElementById("Split_amount");
-        if (cap && spl) {
-            const capVal = parseFloat(cap.value) || 0;
-            if (capVal > 0) spl.value = Math.round(capVal * 0.6);
+        if (!cap || !spl) return;
+        
+        const capVal = parseFloat(cap.value) || 0;
+        
+        // 判斷哪一個比例被勾選了
+        let percent = 0;
+        if (document.getElementById('split_60')?.checked) percent = 60;
+        else if (document.getElementById('split_70')?.checked) percent = 70;
+        else if (document.getElementById('split_80')?.checked) percent = 80;
+
+        // 如果有勾選比例，且產能大於0，自動連動計算
+        if (percent > 0 && capVal > 0) {
+            spl.value = Math.round(capVal * (percent / 100));
         }
+    }
+
+    function calcSplitRadio(percent) {
+        const capInput = document.getElementById("capacity_amout");
+        const splInput = document.getElementById("Split_amount");
+        if (!capInput || !splInput) return;
+
+        const capVal = parseFloat(capInput.value) || 0;
+        if (capVal === 0) {
+            alert('請先輸入「產能金額」後再選擇拆帳比例！');
+            document.getElementById('split_' + percent).checked = false; // 恢復未勾選
+            return;
+        }
+        // 計算並填入金額
+        splInput.value = Math.round(capVal * (percent / 100));
+        
+        // 觸發績效獎金重算
+        if (typeof calcPerformanceBonus === 'function') {
+            calcPerformanceBonus();
+        } else if (typeof window.calcPerformanceBonus === 'function') {
+            window.calcPerformanceBonus();
+        }
+    }
+    
+    function syncSplitRadio() {
+        const capInput = document.getElementById("capacity_amout");
+        const splInput = document.getElementById("Split_amount");
+        const r60 = document.getElementById('split_60');
+        const r70 = document.getElementById('split_70');
+        const r80 = document.getElementById('split_80');
+
+        if (!capInput || !splInput || !r60 || !r70 || !r80) return;
+
+        const capVal = parseFloat(capInput.value) || 0;
+        const splVal = parseFloat(splInput.value);
+
+        // 預設先清空勾選
+        r60.checked = false;
+        r70.checked = false;
+        r80.checked = false;
+
+        if (isNaN(splVal) || capVal === 0) return;
+
+        // 如果數字剛好等於產能的 60%、70% 或 80%，就點亮對應的圈圈
+        if (splVal === Math.round(capVal * 0.60)) r60.checked = true;
+        else if (splVal === Math.round(capVal * 0.70)) r70.checked = true;
+        else if (splVal === Math.round(capVal * 0.80)) r80.checked = true;
     }
 
     function calcPerformanceBonus() {
@@ -592,17 +666,23 @@
         calcPerformanceBonus();
         recalcLeave();
         syncRetirementRadio();
+        syncSplitRadio();
         if (typeof attachCheckupAutoFill === 'function') attachCheckupAutoFill();
     };
 
     document.addEventListener("DOMContentLoaded", function() {
         document.querySelectorAll("input").forEach(input => {
             input.addEventListener("input", () => {
-                if (input.id === "capacity_amout") calculateSplit();
+                if (input.id === "capacity_amout") {
+                    calculateSplit(); // 產能改變時，依據目前打勾的比例重算
+                    syncSplitRadio(); // 同步一次圈圈
+                }
                 calculateTotalHours();
                 calcPerformanceBonus();
                 recalcLeave();
+
                 if (input.id === "retirement_plan_withdraw") syncRetirementRadio();
+                if (input.id === "Split_amount") syncSplitRadio();
             });
         });
     });
