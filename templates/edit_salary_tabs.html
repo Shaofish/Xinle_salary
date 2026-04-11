@@ -130,8 +130,15 @@
             ('duty_allowance','職務/行政津貼','金額')
           ] %}
           <div class="col-md-4 field-group">
-              <label class="form-label">{{label}}：</label>
-              <input id="{{f}}" name="{{f}}" value="{{salary[f]}}" placeholder="{{ph}}" class="form-control numeric-input">
+              <label class="form-label">
+                  {{label}}：
+                  {% if f == 'holiday_work_hr' %}
+                      <span class="info-badge">自動加總</span>
+                  {% endif %}
+              </label>
+              <input id="{{f}}" name="{{f}}" value="{{salary[f]}}" placeholder="{{ph}}" 
+                     class="form-control numeric-input {% if f == 'holiday_work_hr' %}readonly-field{% endif %}"
+                     {% if f == 'holiday_work_hr' %}readonly{% endif %}>
           </div>
           {% endfor %}
       </div>
@@ -411,6 +418,27 @@
     // ==========================================
     // 2. 數值更新與計算邏輯
     // ==========================================
+    // --- 計算假日總時數 ---
+    function calcHolidayHours() {
+        // 抓取 4 個構成假日時數的欄位
+        const rest12 = parseFloat(document.getElementById('Overtime_pay_rest_days12hr')?.value) || 0;
+        const rest38 = parseFloat(document.getElementById('Overtime_pay_rest_days38hr')?.value) || 0;
+        const holiday = parseFloat(document.getElementById('holiday_overtime_hr')?.value) || 0;
+        const national = parseFloat(document.getElementById('National_holidays_hr')?.value) || 0;
+        
+        // 加總
+        const totalHoliday = rest12 + rest38 + holiday + national;
+        
+        // 寫入假日總時數欄位
+        const holidayInput = document.getElementById('holiday_work_hr');
+        if (holidayInput) {
+            holidayInput.value = totalHoliday;
+        }
+
+        // 假日時數改變了，立刻去更新「年度總工時」與「近三個月平均」！
+        calculateTotalHours();
+        if (typeof calcAverageHours === 'function') calcAverageHours();
+    }
 
     function updateLaborInsurance(json) {
         if (!json) return;
@@ -709,6 +737,7 @@
                 if (input.id === "daily_work_hr" || input.id === "holiday_work_hr") {calcAverageHours();}
                 if (input.id === "retirement_plan_withdraw") syncRetirementRadio();
                 if (input.id === "Split_amount") syncSplitRadio();
+                if (['Overtime_pay_rest_days12hr', 'Overtime_pay_rest_days38hr', 'holiday_overtime_hr', 'National_holidays_hr'].includes(input.id)) {calcHolidayHours();}
             });
         });
     });
