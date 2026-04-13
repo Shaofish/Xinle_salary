@@ -21,7 +21,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = 'gtololol01314'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -161,7 +161,10 @@ def calculate_leave_days(onboard_date_input, selected_dt):
     elif years == 0 and months >= 6:
         return 3
     elif years == 1:
-        return 7
+        if months < 6:
+            return 10
+        else:
+            return 7
     elif years == 2:
         return 10
     elif 3 <= years < 5:
