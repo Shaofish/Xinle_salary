@@ -4,6 +4,12 @@
 
 {% block content %}
 <style>
+    table {
+        overflow: visible !important;
+    }
+    main {
+        max-width: 95vw !important;
+    }
     /* 1. 頁面基礎樣式 */
     .preview-header {
         display: flex;
@@ -13,64 +19,6 @@
         padding-bottom: 15px;
         border-bottom: 4px solid #1a365d;
     }
-
-    /* 2. 強制欄位對齊：這是確保上下兩個表格對齊的靈魂 */
-    .col-month { width: 120px; min-width: 120px; }
-    .col-data { width: 110px; min-width: 110px; }
-    .col-remarks { width: 300px; min-width: 300px; }
-
-    /* 3. 容器佈局：拆分為標頭層與資料層 */
-    .salary-wrapper {
-        display: flex;
-        flex-direction: column;
-        border: 3px solid #2d3748;
-        border-radius: 12px;
-        overflow: hidden; /* 防止邊框溢出 */
-    }
-
-    /* 標頭容器：不准出現垂直捲軸，隱藏橫向捲軸（由 JS 控制） */
-    .header-box {
-        width: 100%;
-        overflow: hidden;
-        background-color: #2d3748;
-    }
-
-    /* 資料容器：設定最大高度，開啟捲軸 */
-    .data-box {
-        width: 100%;
-        max-height: 60vh; /* 調整此高度以符合你的螢幕 */
-        overflow: auto;
-        background: white;
-    }
-
-    /* 表格共用設定 */
-    .table-fixed {
-        table-layout: fixed; /* 關鍵：強制依照設定寬度顯示 */
-        width: max-content;
-        border-collapse: collapse;
-        margin: 0;
-    }
-
-    .table-fixed th, .table-fixed td {
-        padding: 12px 10px;
-        border: 1px solid #cbd5e0;
-        text-align: center;
-        white-space: nowrap;
-        font-size: 18px;
-    }
-
-    /* 標頭顏色 */
-    .table-fixed th { color: white; font-weight: bold; border-color: #4a5568; }
-    .head-salary { background-color: #2c5282 !important; }
-    .head-bonus { background-color: #276749 !important; }
-    .head-deduct { background-color: #9b2c2c !important; }
-    .head-company { background-color: #4a5568 !important; }
-    .head-main { background-color: #1a365d !important; }
-
-    /* 資料格樣式 (保留你原本的邏輯) */
-    .text-amount { font-family: 'Consolas', monospace; font-weight: bold; color: #2c5282; }
-    .text-deduct { color: #c53030; font-weight: bold; }
-    .text-final { background-color: #fffaf0; color: #c53030; font-weight: 800; font-size: 22px; }
 
     /* 年份導覽樣式 */
     .year-nav {
@@ -82,16 +30,96 @@
         color: #2b6cb0; font-weight: bold; text-decoration: none;
     }
     .year-btn:hover { background: #2b6cb0; color: white; }
+
+    /* 2. 絲滑滾動容器 (單一容器負責雙向滾動)*/
+    .table-scroll-container {
+        width: 100%;
+        max-height: 65vh; /* 螢幕高度限制，自動產生垂直捲軸 */
+        overflow: auto;   /* 原生開啟雙向捲軸 */
+        border: 3px solid #2d3748;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        background: white;
+    }
+
+    /* 表格核心設定：解開 Sticky 封印的絕對條件 */
+    .perfect-table {
+        table-layout: fixed;
+        width: max-content;
+        /* ✨ border-collapse 必須是 separate，黏性定位才能完美生效 */
+        border-collapse: separate !important; 
+        border-spacing: 0 !important;
+        margin: 0;
+    }
+
+    /* 所有儲存格共用設定 (使用單邊框防止雙倍粗線) */
+    .perfect-table th, .perfect-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #cbd5e0;
+        border-right: 1px solid #cbd5e0;
+        text-align: center;
+        white-space: nowrap;
+        font-size: 18px;
+        background-color: white; /* 預設底色防穿透 */
+    }
+
+    /* 3. 雙軸凍結 */
+    /* 凍結最左側第一欄 (薪資年月) */
+    .perfect-table th:first-child, 
+    .perfect-table td:first-child {
+        width: 120px; min-width: 120px;
+        position: sticky !important;
+        left: 0 !important; /* 永遠貼齊左側 */
+        z-index: 15;        /* 蓋過一般資料 */
+        background-color: #f7fafc;
+        border-right: 3px solid #2d3748 !important; /* 右側粗框區隔 */
+    }
+
+    /* 凍結第一層表頭 (Top Row) */
+    .perfect-table thead tr:nth-child(1) th {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 20; /* 蓋過下方資料與左側欄位 */
+        border-bottom: 1px solid #4a5568;
+    }
+
+    /* 左上角交會點 (薪資年月 表頭) */
+    .perfect-table thead tr:nth-child(1) th:first-child {
+        z-index: 30 !important; /* 最高層級！上下左右滑都不能蓋掉它 */
+        background-color: #1a365d !important;
+    }
+
+    /*凍結第二層表頭 (Sub-headers) */
+    .perfect-table thead tr:nth-child(2) th {
+        position: sticky !important;
+        /* top 的高度將由下方 JS 自動精準計算寫入 */
+        z-index: 19; 
+        background-color: #2d3748;
+        color: white;
+        border-bottom: 3px solid #1a365d;
+    }
+
+    /* 4. 標頭與資料特殊樣式 */
+    .head-main { background-color: #1a365d !important; color: white; }
+    .head-salary { background-color: #2c5282 !important; color: white; }
+    .head-bonus { background-color: #276749 !important; color: white; }
+    .head-deduct { background-color: #9b2c2c !important; color: white; }
+    .head-company { background-color: #4a5568 !important; color: white; }
+
+    .text-amount { font-family: 'Consolas', monospace; font-weight: bold; color: #2c5282; }
+    .text-deduct { color: #c53030; font-weight: bold; }
+    .text-final { background-color: #fffaf0; color: #c53030; font-weight: 800; font-size: 22px; }
+    .col-data { width: 110px; min-width: 110px; }
+    .col-remarks { width: 300px; min-width: 300px; }
 </style>
 
 <div class="preview-header">
-    <h2 class="mb-0"><i class="fa-solid fa-table-columns me-2"></i> 薪資歷史明細 (標頭凍結版)</h2>
+    <h2 class="mb-0"><i class="fa-solid fa-table-columns me-2"></i> 薪資歷史明細</h2>
     <div class="text-end">
         <span class="badge bg-primary fs-5">員工：{{ employee_name }} ({{ employee_id }})</span>
     </div>
 </div>
 
-<!-- 年份導覽按鈕 -->
 <div class="year-nav">
     <span class="fw-bold me-2">快速跳轉：</span>
     {% set years = [] %}
@@ -109,95 +137,94 @@
     <a href="{{ url_for('employee_list') }}" class="btn btn-secondary px-4">← 返回列表</a>
 </div>
 
-<!-- 🌟 雙表格構造 🌟 -->
-<div class="salary-wrapper">
-    <!-- 1. 上方標頭表格 (Header Only) -->
-    <div class="header-box" id="headerBox">
-        <table class="table-fixed">
-            <thead>
-                <tr>
-                    <th rowspan="2" class="head-main col-month">薪資年月</th>
-                    <th colspan="11" class="head-salary">應給項目 (薪資結構)</th>
-                    <th colspan="9" class="head-bonus">福利與各項補貼</th>
-                    <th colspan="7" class="head-deduct">應代扣項目 (員工自付)</th>
-                    <th colspan="2" class="head-main">支付統計</th>
-                    <th colspan="4" class="head-company">公司負擔額</th>
-                    <th rowspan="2" class="head-main col-remarks">備註</th>
-                </tr>
-                <tr>
-                    <!-- 寬度必須與下方 td 完全一致 -->
-                    {% for label in ['本薪','轉場','職務','平日加班','休息日','例假日','國定假日','績效獎金','A碼鼓勵','特休折現','跨區補助','節日','培訓','生日','證照','體檢','旅遊','新案','其他(1)','其他(2)','勞保','健保','照服險','意外險','勞退自提','代扣(1)','代扣(2)','應發','實發','公司勞保','公司職災','公司健保','公司勞退'] %}
-                    <th class="col-data" style="background-color:#2d3748;">{{ label }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-        </table>
-    </div>
-
-    <!-- 2. 下方資料表格 (Data Only) -->
-    <div class="data-box" id="dataBox">
-        <table class="table-fixed" id="salaryTable">
-            <tbody>
-                {% for r in salaries %}
-                {% set current_year = r.year_month|string|truncate(4, True, '') %}
-                <tr id="year-{{ current_year if loop.changed(current_year) else '' }}">
-                    <td class="col-month fw-bold" style="background:#f7fafc;">{{ r.year_month }}</td>
-                    <td class="col-data text-amount">{{ r.daily_work_salary|int }}</td>
-                    <td class="col-data text-amount">{{ r.transition_allowance|int }}</td>
-                    <td class="col-data text-amount">{{ r.duty_allowance|int }}</td>
-                    <td class="col-data text-amount">{{ r.total_overtime_pay_weekdays|int }}</td>
-                    <td class="col-data text-amount">{{ r.total_overtime_pay_restdays|int }}</td>
-                    <td class="col-data text-amount">{{ r.total_pay_holidays|int }}</td>
-                    <td class="col-data text-amount">{{ r.total_pay_national_holidays|int }}</td>
-                    <td class="col-data text-amount">{{ r.Performance_bonuses|int }}</td>
-                    <td class="col-data text-amount">{{ r.AA09_bonus|int }}</td>
-                    <td class="col-data text-amount">{{ r.leave_deduction_amount|int }}</td>
-                    <td class="col-data text-amount">{{ r.Inter_district_subsidie|int }}</td>
-                    
-                    <td class="col-data text-amount">{{ r.holiday_bonus|int }}</td>
-                    <td class="col-data text-amount">{{ r.training_fee|int }}</td>
-                    <td class="col-data text-amount">{{ r.birthday_bonus|int }}</td>
-                    <td class="col-data text-amount">{{ r.licence_allowance|int }}</td>
-                    <td class="col-data text-amount">{{ r.check_up|int }}</td>
-                    <td class="col-data text-amount">{{ r.travel_allowance|int }}</td>
-                    <td class="col-data text-amount">{{ r.new_case_allowance|int }}</td>
-                    <td class="col-data text-amount">{{ r.extras_amout|int }}</td>
-                    <td class="col-data text-amount">{{ r.extras2_amount|int }}</td>
-                    
-                    <td class="col-data text-deduct">{{ r.Labor_premiums|int }}</td>
-                    <td class="col-data text-deduct">{{ r.Insurance_amount|int }}</td>
-                    <td class="col-data text-deduct">{{ r.home_caregiver_insurance|int }}</td>
-                    <td class="col-data text-deduct">{{ r.group_accident_insurance|int }}</td>
-                    <td class="col-data text-deduct">{{ r.retirement_plan_withdraw|int }}</td>
-                    <td class="col-data text-deduct">{{ r.additional_withholding_amout|int }}</td>
-                    <td class="col-data text-deduct">{{ r.additional_withholding2_amount|int }}</td>
-                    
-                    <td class="col-data text-amount" style="background: #f0f4f8;">{{ r.payroll_due|int }}</td>
-                    <td class="col-data text-final">{{ r.paid_in_salary|int }}</td>
-                    
-                    <td class="col-data text-muted">{{ r.company_labor|int }}</td>
-                    <td class="col-data text-muted">{{ r.company_occu|int }}</td>
-                    <td class="col-data text-muted">{{ r.company_health|int }}</td>
-                    <td class="col-data text-muted">{{ r.company_retire|int }}</td>
-                    
-                    <td class="col-remarks text-start">{{ r.remarks or '--' }}</td>
-                </tr>
+<div class="table-scroll-container">
+    <table class="perfect-table" id="salaryTable">
+        <thead>
+            <tr>
+                <th rowspan="2" class="head-main fw-bold">薪資年月</th>
+                
+                <th colspan="11" class="head-salary">應給項目 (薪資結構)</th>
+                <th colspan="9" class="head-bonus">福利與各項補貼</th>
+                <th colspan="7" class="head-deduct">應代扣項目 (員工自付)</th>
+                <th colspan="2" class="head-main">支付統計</th>
+                <th colspan="4" class="head-company">公司負擔額</th>
+                <th rowspan="2" class="head-main col-remarks">備註</th>
+            </tr>
+            <tr>
+                {% for label in ['本薪','轉場','職務','平日加班','休息日','例假日','國定假日','績效獎金','A碼鼓勵','特休折現','跨區補助','節日','培訓','生日','證照','體檢','旅遊','新案','其他(1)','其他(2)','勞保','健保','照服險','意外險','勞退自提','代扣(1)','代扣(2)','應發','實發','公司勞保','公司職災','公司健保','公司勞退'] %}
+                <th class="col-data">{{ label }}</th>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in salaries %}
+            {% set current_year = r.year_month|string|truncate(4, True, '') %}
+            <tr id="year-{{ current_year if loop.changed(current_year) else '' }}">
+                <td class="fw-bold">{{ r.year_month }}</td>
+                
+                <td class="col-data text-amount">{{ r.daily_work_salary|int }}</td>
+                <td class="col-data text-amount">{{ r.transition_allowance|int }}</td>
+                <td class="col-data text-amount">{{ r.duty_allowance|int }}</td>
+                <td class="col-data text-amount">{{ r.total_overtime_pay_weekdays|int }}</td>
+                <td class="col-data text-amount">{{ r.total_overtime_pay_restdays|int }}</td>
+                <td class="col-data text-amount">{{ r.total_pay_holidays|int }}</td>
+                <td class="col-data text-amount">{{ r.total_pay_national_holidays|int }}</td>
+                <td class="col-data text-amount">{{ r.Performance_bonuses|int }}</td>
+                <td class="col-data text-amount">{{ r.AA09_bonus|int }}</td>
+                <td class="col-data text-amount">{{ r.leave_deduction_amount|int }}</td>
+                <td class="col-data text-amount">{{ r.Inter_district_subsidie|int }}</td>
+                
+                <td class="col-data text-amount">{{ r.holiday_bonus|int }}</td>
+                <td class="col-data text-amount">{{ r.training_fee|int }}</td>
+                <td class="col-data text-amount">{{ r.birthday_bonus|int }}</td>
+                <td class="col-data text-amount">{{ r.licence_allowance|int }}</td>
+                <td class="col-data text-amount">{{ r.check_up|int }}</td>
+                <td class="col-data text-amount">{{ r.travel_allowance|int }}</td>
+                <td class="col-data text-amount">{{ r.new_case_allowance|int }}</td>
+                <td class="col-data text-amount">{{ r.extras_amout|int }}</td>
+                <td class="col-data text-amount">{{ r.extras2_amount|int }}</td>
+                
+                <td class="col-data text-deduct">{{ r.Labor_premiums|int }}</td>
+                <td class="col-data text-deduct">{{ r.Insurance_amount|int }}</td>
+                <td class="col-data text-deduct">{{ r.home_caregiver_insurance|int }}</td>
+                <td class="col-data text-deduct">{{ r.group_accident_insurance|int }}</td>
+                <td class="col-data text-deduct">{{ r.retirement_plan_withdraw|int }}</td>
+                <td class="col-data text-deduct">{{ r.additional_withholding_amout|int }}</td>
+                <td class="col-data text-deduct">{{ r.additional_withholding2_amount|int }}</td>
+                
+                <td class="col-data text-amount" style="background: #f0f4f8;">{{ r.payroll_due|int }}</td>
+                <td class="col-data text-final">{{ r.paid_in_salary|int }}</td>
+                
+                <td class="col-data text-muted">{{ r.company_labor|int }}</td>
+                <td class="col-data text-muted">{{ r.company_occu|int }}</td>
+                <td class="col-data text-muted">{{ r.company_health|int }}</td>
+                <td class="col-data text-muted">{{ r.company_retire|int }}</td>
+                
+                <td class="col-remarks text-start">{{ r.remarks or '--' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 <script>
-    // 🌟 聯動滾動：當下方 DataBox 左右滾動時，上方 HeaderBox 同步滾動
-    const dataBox = document.getElementById('dataBox');
-    const headerBox = document.getElementById('headerBox');
+    // ✨ 終極防錯位：自動精準測量第一層表頭高度，設定給第二層表頭的 Sticky Top
+    function adjustStickyHeader() {
+        const firstRow = document.querySelector('.perfect-table thead tr:nth-child(1)');
+        const secondRowHeaders = document.querySelectorAll('.perfect-table thead tr:nth-child(2) th');
+        
+        if (firstRow && secondRowHeaders.length > 0) {
+            // 取得第一層表頭實際的像素高度
+            const h = firstRow.getBoundingClientRect().height;
+            secondRowHeaders.forEach(th => th.style.top = h + 'px');
+        }
+    }
 
-    dataBox.addEventListener('scroll', () => {
-        headerBox.scrollLeft = dataBox.scrollLeft;
-    });
+    // 載入完成、或視窗縮放時都重新計算，確保無縫接軌
+    window.addEventListener('DOMContentLoaded', adjustStickyHeader);
+    window.addEventListener('resize', adjustStickyHeader);
 
-    // 搜尋過濾
+    // 搜尋過濾功能
     document.getElementById('tableSearch').addEventListener('keyup', function() {
         let filter = this.value.toUpperCase();
         let rows = document.querySelectorAll('#salaryTable tbody tr');
@@ -207,7 +234,7 @@
         });
     });
 
-    // 平滑跳轉
+    // 年份平滑跳轉
     document.querySelectorAll('.year-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();

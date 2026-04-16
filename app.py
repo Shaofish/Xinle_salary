@@ -437,8 +437,11 @@ def edit_profile(employee_id):
         # 檢查眷口補助人數總和是否等於投保眷口數
         total_subsidy_dependents = subsidy_none + subsidy_half + subsidy_full
         if qualification != total_subsidy_dependents:
-            flash(f'更新失敗：健保眷口設定不符！您選擇投保「{qualification} 名眷口」，但各項補助人數相加為 {total_subsidy_dependents} 人。', 'danger')
-            return redirect(url_for('edit_profile', employee_id=employee_id))
+            # 準備要顯示的文字 (使用 \\n 來讓彈出視窗的文字換行，看起來更清楚)
+            error_msg = f"❌ 更新失敗：健保眷口設定不符！\\n\\n您選擇投保「{qualification} 名眷口」\\n但各項補助人數相加為 {total_subsidy_dependents} 人。"
+            
+            # 直接回傳 JavaScript：彈出警告，並退回上一頁 (保留使用者輸入的資料)
+            return f"<script>alert('{error_msg}'); window.history.back();</script>"
         
         leave_month_input = request.form.get('leave_payment_month_of_year')
         if not leave_month_input or leave_month_input.strip() == "":
