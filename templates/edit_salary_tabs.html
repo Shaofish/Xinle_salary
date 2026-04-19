@@ -176,7 +176,7 @@
               <input type="number" id="leave_days" name="leave_days" value="{{ salary.leave_days }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
           </div>
           <div class="col-md-6 field-group">
-              <label class="form-label">已請特休天數：</label>
+              <label class="form-label">已請特休天數(不可超過應給特休總天數)：</label>
               <input type="number" step="any" id="leave_taken_days" name="leave_taken_days" value="{{ salary.leave_taken_days }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
           </div>
           <div class="col-md-6 field-group">
@@ -353,6 +353,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    const HOURLY_WAGE = 200;
     // ==========================================
     // 1. 資料抓取區 (AJAX Fetch) - 解決「顯示讀取中」的問題
     // ==========================================
@@ -624,7 +625,7 @@
         };
         const split = get('Split_amount');
         const ot = get('total_overtime_pay_weekdays') + get('total_overtime_pay_restdays') + get('total_pay_holidays') + get('total_pay_national_holidays');
-        const perf = split - ((get('daily_work_hr') * 200) + get('transition_allowance') + ot + get('duty_allowance'));
+        const perf = split - ((get('daily_work_hr') * HOURLY_WAGE) + get('transition_allowance') + ot + get('duty_allowance'));
         if (document.getElementById("Performance_bonuses")) document.getElementById("Performance_bonuses").value = perf.toFixed(2);
         const aa09Input = document.getElementById("AA09_bonus");
         const av = get('AA09_bonus_view');
@@ -633,14 +634,20 @@
 
     function recalcLeave() {
         const days = parseFloat(document.getElementById("leave_days")?.value || 0);
-        const taken = parseFloat(document.getElementById("leave_taken_days")?.value || 0);
+        const takenInput = document.getElementById("leave_taken_days");
+        let taken = parseFloat(takenInput?.value || 0);
+        if (taken > days) {
+            alert(`❌ 輸入錯誤！\n已請特休天數 (${taken} 天) 不能超過應給特休總數 (${days} 天)。\n系統已自動為您調整為最大上限 ${days} 天。`);
+            taken = days; // 強制將變數設為最大上限
+            if (takenInput) takenInput.value = days; // 同步修改畫面上的輸入框
+        }
         const annual = parseFloat(document.getElementById("annual_total_hours")?.value || 0);
         const service = parseFloat(document.getElementById("total_service_hours")?.value || 0);
         const remain = days - taken;
         if (document.getElementById("leave_hours_per_day")) document.getElementById("leave_hours_per_day").value = remain > 0 ? (annual / remain).toFixed(2) : 0;
         const payDays = annual > 0 ? (service * remain / annual) : 0;
         if (document.getElementById("leave_pay_days")) document.getElementById("leave_pay_days").value = payDays.toFixed(2);
-        if (document.getElementById("leave_deduction_amount")) document.getElementById("leave_deduction_amount").value = Math.round(payDays * 1600);
+        if (document.getElementById("leave_deduction_amount")) document.getElementById("leave_deduction_amount").value = Math.round(payDays * 8 * HOURLY_WAGE);
     }
 
     function syncRetirementRadio() {
