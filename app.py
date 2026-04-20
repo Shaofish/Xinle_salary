@@ -569,17 +569,6 @@ def edit_profile(employee_id):
     finally:
         cursor.close()
 
-# ====== 修改 edit_salary_tabs 預設級距邏輯 ======
-# 在原本的 GET 區塊尋找 if not salary 處修改：
-    if not salary:
-        salary = {'year_month': selected_month}
-        # 預設帶入基本資料中設定的級距
-        salary['total_payment_insure_grade'] = info.get('labor_insurance_grade', 0)
-        salary['health_insure_grade'] = info.get('health_insurance_grade', 0)
-        for field in all_fields:
-            if field not in salary: salary[field] = 0
-
-
 # ====== 員工列表 ======
 @app.route('/employee_list')
 @login_required
@@ -1823,7 +1812,8 @@ def import_history_process():
 
             # 2. 獲取該員工的基本身分資訊 (用於保險計算)
             cur.execute("""
-                SELECT qualification, subsidy FROM employee_info 
+                SELECT qualification, subsidy, subsidy_none, subsidy_half, subsidy_full 
+                FROM employee_info 
                 WHERE employee_id = %s
             """, (employee_id,))
             emp_info = cur.fetchone()
@@ -1864,7 +1854,14 @@ def import_history_process():
             health_grade = safe_int(import_data.get('health_insure_grade', 0))
             if health_grade > 0:
                 health_res = get_full_health_details(
-                    cur, health_grade, emp_info['qualification'], emp_info['subsidy'], year
+                    cur, 
+                    health_grade, 
+                    emp_info.get('qualification', 0), 
+                    emp_info.get('subsidy', 0), 
+                    emp_info.get('subsidy_none', 0),
+                    emp_info.get('subsidy_half', 0),
+                    emp_info.get('subsidy_full', 0),
+                    year
                 )
                 if health_res:
                     # 如果 Excel 中的自付額是 0，補回算好的自付額
@@ -1929,11 +1926,11 @@ def get_full_labor_details(cursor, grade_val, year):
         print(f"勞保查表失敗: {e}")
         return {}
 
-def get_full_health_details(cursor, grade_val, dependents, subsidy_type, year):
+def get_full_health_details(cursor, grade_val, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full, year):
     """根據年份與健保級距，計算員工自付額並抓取單位負擔"""
     try:
         cursor.execute("""
-            SELECT `employee_and0`, `employee_and1`, `employee_and2`, `employee_and3`, `company_health`
+            SELECT `employee_and0`, `company_health`
             FROM health_insurance_level 
             WHERE `Range` >= %s AND effective_year = %s 
             ORDER BY `Range` ASC LIMIT 1
@@ -1942,27 +1939,51 @@ def get_full_health_details(cursor, grade_val, dependents, subsidy_type, year):
         
         if not res:
             cursor.execute("""
-                SELECT `employee_and0`, `employee_and1`, `employee_and2`, `employee_and3`, `company_health`
+                SELECT `employee_and0`, `company_health`
                 FROM health_insurance_level 
                 WHERE `Range` >= %s ORDER BY effective_year DESC, `Range` ASC LIMIT 1
             """, (grade_val,))
             res = cursor.fetchone()
             
         if not res: return {}
+        # 取得單一人的保費基準 (相容資料庫大小寫)
+        base = float(res.get('employee_and0') or res.get('Employee_and0') or 0)
+        total_pay = 0
+        # === 1. 計算【本人】保費 ===
+        s = int(subsidy or 0)
+        if s == 5:
+            self_pay = 0
+        elif s == 2:
+            self_pay = int((base / 2) + 0.5) # 使用 +0.5 完美模擬 JS 的 Math.round()
+        else:
+            self_pay = int(base)
+            
+        total_pay += self_pay
 
-        # 計算員工自付額 (考慮補助)
-        q = min(int(dependents or 0), 3)
-        base_field = f'employee_and{q}'
-        # 相容大小寫
-        self_pay = res.get(base_field) or res.get(base_field.capitalize()) or 0
-        
-        s = int(subsidy_type or 0)
-        final_self_pay = 0
-        if s == 2: final_self_pay = int(float(self_pay) * 0.5)
-        elif s != 5: final_self_pay = int(self_pay)
-        
+        # === 2. 計算【眷屬】保費 ===
+        q = int(qualification or 0)
+        s0 = int(subsidy_none or 0)
+        s1 = int(subsidy_half or 0)
+        # 健保規定最多收 3 個人的錢
+        billable_dependents = min(q, 3)
+
+        # (A) 優先計算無補助眷屬 (收全額)
+        if s0 > 0 and billable_dependents > 0:
+            count = min(s0, billable_dependents)
+            total_pay += int(base * count)
+            billable_dependents -= count
+
+        # (B) 再計算半額補助眷屬
+        if s1 > 0 and billable_dependents > 0:
+            count = min(s1, billable_dependents)
+            half_base = int((base / 2) + 0.5)
+            total_pay += int(half_base * count)
+            billable_dependents -= count
+
+        # 全額補助 (s2) 不收費，所以不用加
+
         return {
-            'Insurance_amount': final_self_pay,
+            'Insurance_amount': total_pay,
             'company_health': res.get('company_health', 0)
         }
     except Exception as e:
