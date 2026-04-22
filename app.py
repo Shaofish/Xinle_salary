@@ -1,16 +1,13 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash ,send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash ,send_file, jsonify, make_response
 from flask_mysqldb import MySQL
 from MySQLdb.cursors import DictCursor
 from MySQLdb import IntegrityError
 from datetime import datetime, timedelta, date
 import pdfkit  # 加在檔案開頭
-from flask import make_response
 import pandas as pd
-import io
-from io import BytesIO
-import pymysql
+import io ,pymysql ,json
+from io import BytesIO 
 from functools import wraps
-import json
 from dateutil.relativedelta import relativedelta
 from urllib.parse import quote
 import numpy as np
@@ -21,7 +18,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = 'gtololol01314'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -338,7 +335,7 @@ def employee_manage():
 
     # 在職員工
     cursor.execute("""
-        SELECT employee_id, employee_name 
+        SELECT employee_id, employee_name , position
         FROM employee_info 
         WHERE is_hidden = FALSE AND (status = 'active' OR status IS NULL)
     """)
@@ -346,7 +343,7 @@ def employee_manage():
 
     # 已離職員工
     cursor.execute("""
-        SELECT employee_id, employee_name, resign_date
+        SELECT employee_id, employee_name, resign_date, position
         FROM employee_info 
         WHERE is_hidden = FALSE AND status = 'resigned'
     """)
@@ -579,7 +576,7 @@ def employee_list():
 
     # 在職員工
     cursor.execute("""
-        SELECT employee_id, employee_name 
+        SELECT employee_id, employee_name , position
         FROM employee_info 
         WHERE is_hidden = FALSE AND (status = 'active' OR status IS NULL)
     """)
@@ -587,7 +584,7 @@ def employee_list():
 
     # 已離職員工
     cursor.execute("""
-        SELECT employee_id, employee_name, resign_date
+        SELECT employee_id, employee_name, resign_date, position
         FROM employee_info 
         WHERE is_hidden = FALSE AND status = 'resigned'
     """)

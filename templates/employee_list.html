@@ -128,16 +128,16 @@
         <table class="salary-table">
             <thead>
                 <tr>
-                    <th style="width: 18%;">編號</th>
-                    <th style="width: 20%;">姓名</th>
-                    <th style="width: 62%;">功能操作區 (水平排列)</th>
+                    <th style="width: 17%;">編號</th>
+                    <th style="width: 26%;">姓名</th>
+                    <th style="width: 57%;">功能操作區 (水平排列)</th>
                 </tr>
             </thead>
             <tbody>
                 {% for e in employees %}
                 <tr>
                     <td class="bold">{{ e.employee_id }}</td>
-                    <td class="bold" style="font-size: 26px;">{{ e.employee_name }}</td>
+                    <td class="bold" style="font-size: 26px;">{{ e.employee_name }}{% if e.position %}（{{ e.position }}）{% endif %}</td>
                     <td>
                         <div class="btn-row-group">
                             <a href="{{ url_for('preview_salary', employee_id=e.employee_id) }}" class="btn btn-sm-custom" style="background: #2f855a; color: white;">預覽</a>
@@ -163,9 +163,9 @@
         <table class="salary-table">
             <thead>
                 <tr>
-                    <th style="width: 18%;">編號</th>
-                    <th style="width: 20%;">姓名</th>
-                    <th style="width: 62%;">歷史資料操作</th>
+                    <th style="width: 17%;">編號</th>
+                    <th style="width: 26%;">姓名</th>
+                    <th style="width: 57%;">歷史資料操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -173,7 +173,7 @@
                 <tr>
                     <td class="bold">{{ e.employee_id }}</td>
                     <td>
-                        <span class="bold" style="font-size: 26px;">{{ e.employee_name }}</span>
+                        <span class="bold" style="font-size: 26px;">{{ e.employee_name }}{% if e.position %}（{{ e.position }}）{% endif %}</span>
                         {% if e.resign_date %}
                         <span class="resign-info">離職日：{{ e.resign_date.strftime("%Y-%m-%d") }}</span>
                         {% endif %}
