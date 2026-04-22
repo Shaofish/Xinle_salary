@@ -89,7 +89,6 @@
                 <input type="text" name="employee_name" class="form-control" placeholder="請輸入全名" required>
             </div>
         </div>
-
         <div class="row">
             <div class="col-md-4 mb-4">
                 <label class="form-label">出生日期 <span class="text-danger">*</span></label>
@@ -104,7 +103,16 @@
                 <input type="date" name="employee_onboard" class="form-control" required>
             </div>
         </div>
-
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <label class="form-label">職位名稱<span class="text-danger">*</span></label>
+                <select name="position" class="form-select" required>
+                    <option value="">請點擊選擇職位</option>
+                    <option value="居服">居服</option>
+                    <option value="行政">行政</option>
+                </select>
+            </div>
+        </div>
         <hr>
         
         <h4 class="mb-4"><i class="fa-solid fa-shield-halved"></i> 固定保險級距設定</h4>

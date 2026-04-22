@@ -106,7 +106,6 @@
                 <input type="text" name="employee_card" class="form-control" value="{{ employee.employee_card }}">
             </div>
         </div>
-
         <div class="row">
             <div class="col-md-6 mb-4">
                 <label class="form-label">出生日期</label>
@@ -117,7 +116,16 @@
                 <input type="date" name="employee_onboard" class="form-control" value="{{ employee.employee_onboard }}">
             </div>
         </div>
-
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <label class="form-label">職位名稱<span class="text-danger">*</span></label>
+                    <select name="position" class="form-select" required>
+                        <option value="">請點擊選擇職位</option>
+                        <option value="居服"    {% if employee.position == '居服'    %}selected{% endif %}>居服</option>
+                        <option value="行政"    {% if employee.position == '行政'    %}selected{% endif %}>行政</option>
+                    </select>
+            </div>
+        </div>
         <hr>
 
         <h4><i class="fa-solid fa-shield-halved"></i> 固定保險級距設定</h4>

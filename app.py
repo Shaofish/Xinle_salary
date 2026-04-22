@@ -216,14 +216,13 @@ column_mapping = {
     'employee_card': '身份證字號',
     'employee_name': '姓名',
     'employee_onboard': '到職日',
+    'position': '職位名稱',
     'subsidy_full': '全額補助人數',
     'subsidy_half': '半額補助人數',
     'subsidy_none': '無補助人數',
     'status': '在職狀態',
     'qualification': '本人投保身分',
     'subsidy': '本人補助身分',
-    
-    
     #約定薪資結構
     'capacity_amout': '產能金額',
     'AA09_bonus_view' : 'A碼鼓勵獎金(顯示用)',
@@ -248,6 +247,8 @@ column_mapping = {
     'total_pay_national_holidays': '國定假日加班費總金額',
     'AA09_bonus': 'A碼鼓勵獎金',
     'Inter_district_subsidie': '跨區補助',
+    'duty_allowance': '職務津貼',
+    'administration_allowance': '行政薪資',
     #非固定支付項目
     'leave_days': '特休天數',
     'leave_taken_days': '特休請假天數',
@@ -258,7 +259,6 @@ column_mapping = {
     'leave_deduction_amount': '特休折抵金額',
     'leave_payment_month_of_year': '每年特休發放月份',
     'leave_payment_month': '特休發放月份',
-    'duty_allowance': '行政薪資/職務津貼',
     #福利設定
     'licence_allowance': '證照津貼',
     'holiday_bonus': '三節獎金',
@@ -358,8 +358,6 @@ def employee_manage():
                             employees=employees,
                             resigned_employees=resigned_employees)
 
-
-
 @app.route('/add_employee', methods=['GET', 'POST'])
 @login_required
 def add_employee():
@@ -370,6 +368,7 @@ def add_employee():
         employee_card = request.form['employee_card']
         employee_name = request.form['employee_name']
         employee_onboard = request.form['employee_onboard']
+        position = request.form.get('position', '')
         # 新增級距欄位
         labor_grade = request.form.get('labor_insurance_grade', 0)
         health_grade = request.form.get('health_insurance_grade', 0)
@@ -386,12 +385,12 @@ def add_employee():
             cursor.execute("""
                 INSERT INTO `employee_info` 
                 (`employee_id`, `employee_birth`, `employee_card`, `employee_name`, 
-                 `employee_onboard`, `qualification`, `subsidy`, 
+                 `employee_onboard`, `position`, `qualification`, `subsidy`, 
                  `subsidy_none`, `subsidy_half`, `subsidy_full`, 
                  `leave_payment_month_of_year`, `labor_insurance_grade`, `health_insurance_grade`)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (employee_id, employee_birth, employee_card, employee_name,
-                  employee_onboard, qualification, subsidy,
+                  employee_onboard, position, qualification, subsidy,
                   subsidy_none, subsidy_half, subsidy_full, 
                   leave_payment_month_of_year, labor_grade, health_grade))
             mysql.connection.commit()
@@ -410,7 +409,6 @@ def add_employee():
     
     return render_template('add_employee.html', data={}, labor_levels=labor_levels, health_levels=health_levels)
 
-
 @app.route('/edit_profile/<employee_id>', methods=['GET', 'POST'])
 @login_required
 def edit_profile(employee_id):
@@ -421,7 +419,7 @@ def edit_profile(employee_id):
         employee_birth = request.form.get('employee_birth')
         employee_card = request.form.get('employee_card')
         employee_onboard = request.form.get('employee_onboard')
-        
+        position = request.form.get('position', '')
         # 處理數值 (防止空字串導致 int() 轉換失敗)
         def safe_int(val):
             return int(val) if val and val.strip() else 0
@@ -475,13 +473,13 @@ def edit_profile(employee_id):
             cursor.execute("""
                 UPDATE `employee_info`
                 SET `employee_id` = %s, `employee_name` = %s, `employee_birth` = %s, `employee_card` = %s, 
-                    `employee_onboard` = %s, `qualification` = %s, `subsidy` = %s, 
+                    `employee_onboard` = %s, `position` = %s, `qualification` = %s, `subsidy` = %s, 
                     `subsidy_none` = %s, `subsidy_half` = %s, `subsidy_full` = %s, 
                     `leave_payment_month_of_year` = %s,
                     `labor_insurance_grade` = %s, `health_insurance_grade` = %s
                 WHERE `employee_id` = %s
             """, (new_employee_id, employee_name, employee_birth, employee_card, 
-                  employee_onboard, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full, 
+                  employee_onboard, position, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full, 
                   leave_payment_month_of_year, labor_grade, health_grade, employee_id))
 
             # Update 關聯表 (手動 Cascade)
@@ -508,6 +506,7 @@ def edit_profile(employee_id):
                 'employee_birth': employee_birth, 
                 'employee_card': employee_card,
                 'employee_onboard': employee_onboard,
+                'position': position,
                 'qualification': qualification,
                 'subsidy': subsidy,
                 'subsidy_none': subsidy_none,
@@ -663,7 +662,7 @@ def edit_salary_tabs(employee_id):
             'Overtime_pay_weekdays910hr', 'Overtime_pay_weekdays1112hr', 'Overtime_pay_weekdays910', 'Overtime_pay_weekdays1112',
             'total_overtime_pay_weekdays', 'Performance_bonuses', 'Overtime_pay_rest_days12', 'Overtime_pay_rest_days38',
             'holiday_overtime_hr', 'total_pay_holidays', 'National_holidays_hr', 'total_pay_national_holidays', 'AA09_bonus',
-            'Inter_district_subsidie', 'duty_allowance'
+            'Inter_district_subsidie', 'duty_allowance','administration_allowance'
         ],
         'other': [
             'leave_days', 'leave_taken_days', 'annual_total_hours', 'leave_hours_per_day', 'total_service_hours',
@@ -1253,7 +1252,7 @@ def export_excel(employee_id):
         SELECT 
             s.`year_month`, s.`employee_id`, i.`employee_birth`, i.`employee_card`, i.`employee_name`, i.`employee_onboard`,
             s.`capacity_amout`, s.`Split_amount`, s.`AA09_bonus_view`, s.`daily_work_hr`, s.`holiday_work_hr`, s.`total_hr`,
-            s.`daily_work_salary`, s.`duty_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
+            s.`daily_work_salary`, s.`duty_allowance`,s.`administration_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
             s.`Overtime_pay_weekdays1112hr`, s.`total_overtime_pay_weekdays`,s.`Overtime_pay_rest_days12hr`, 
             s.`Overtime_pay_rest_days38hr`, s.`total_overtime_pay_restdays`,s.`holiday_overtime_hr`, s.`total_pay_holidays`, 
             s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
@@ -1369,7 +1368,7 @@ def export_excel_by_month(year_month):
         SELECT 
             s.`year_month`, s.`employee_id`, i.`employee_birth`, i.`employee_card`, i.`employee_name`, i.`employee_onboard`,
             s.`capacity_amout`, s.`Split_amount`, s.`AA09_bonus_view`, s.`daily_work_hr`, s.`holiday_work_hr`, s.`total_hr`,
-            s.`daily_work_salary`, s.`duty_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
+            s.`daily_work_salary`, s.`duty_allowance`, s.`administration_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
             s.`Overtime_pay_weekdays1112hr`, s.`total_overtime_pay_weekdays`,s.`Overtime_pay_rest_days12hr`, 
             s.`Overtime_pay_rest_days38hr`, s.`total_overtime_pay_restdays`,s.`holiday_overtime_hr`, s.`total_pay_holidays`, 
             s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
