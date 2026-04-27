@@ -750,6 +750,12 @@
         });
     });
 
-    function validateForm() { return true; }
+    function validateForm() { 
+        const aa09Input = document.getElementById("AA09_bonus");
+        if (aa09Input && parseFloat(aa09Input.value) < 0) {
+            aa09Input.value = 0;
+        }
+        return true;
+    }
 </script>
 {% endblock %}
