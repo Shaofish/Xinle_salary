@@ -70,6 +70,7 @@
   </div>
 
   <form method="POST" onsubmit="return validateForm()">
+    <input type="hidden" id="employeePosition" value="{{ info.position }}">
     <input type="hidden" name="year_month" value="{{ selected_month }}">
 
     <div class="nav-tabs-custom">
@@ -81,6 +82,7 @@
 
     <div id="salary" class="tab-content active">
       <h3><i class="fa-solid fa-money-bill-transfer"></i> 約定薪資與時數明細</h3>
+      {% if info.position == '居服' %}
       <div class="row">
           <div class="col-md-6 field-group">
               <label class="form-label">產能金額：</label>
@@ -108,12 +110,14 @@
               <input type="number" id="Split_amount" name="Split_amount" value="{{ salary.Split_amount }}" class="form-control numeric-input">
           </div>
       </div>
+      {% endif %}
 
       <div class="row">
           {% for f,label,ph in [
-            ('AA09_bonus_view' , 'A碼獎金(原始)','例如：5000'),
-            ('daily_work_hr','平日總時數','160'),
-            ('holiday_work_hr','假日總時數','16'),
+            ('AA09_bonus_view' , 'A碼獎金(原始)','金額'),
+            ('administration_allowance','行政薪資','金額'),
+            ('daily_work_hr','平日總時數','時數'),
+            ('holiday_work_hr','假日總時數','時數'),
             ('Overtime_pay_weekdays910hr','平日加班(9-10)','時數'),
             ('Overtime_pay_weekdays1112hr','平日加班(11-12)','時數'),
             ('total_overtime_pay_weekdays','平日總加班費','金額'),
@@ -125,11 +129,18 @@
             ('National_holidays_hr','國定假日時數','時數'),
             ('total_pay_national_holidays','國定假日加班費','金額'),
             ('transition_hr','轉場總時數','5'),
-            ('transition_allowance','轉場總津貼','1000'),
+            ('transition_allowance','轉場總津貼','金額'),
             ('Inter_district_subsidie','跨區補貼','金額'),
             ('duty_allowance','職務津貼','金額'),
-            ('administration_allowance','行政薪資','金額'),
           ] %}
+
+          {% set is_admin = (info.position == '行政') %}
+          {% set is_caregiver = (info.position == '居服') %}
+          
+          {% set admin_hide_fields = ['AA09_bonus_view', 'transition_hr', 'transition_allowance', 'Inter_district_subsidie'] %}
+          {% set caregiver_hide_fields = ['administration_allowance'] %}
+
+          {% if not (is_admin and f in admin_hide_fields) and not (is_caregiver and f in caregiver_hide_fields) %}
           <div class="col-md-4 field-group">
               <label class="form-label">
                   {{label}}：
@@ -141,9 +152,11 @@
                      class="form-control numeric-input {% if f == 'holiday_work_hr' %}readonly-field{% endif %}"
                      {% if f == 'holiday_work_hr' %}readonly{% endif %}>
           </div>
+          {% endif %}
           {% endfor %}
       </div>
       
+      {% if info.position == '居服' %}
       <div class="row mt-3 bg-light p-3 rounded border">
           <div class="col-md-6">
               <label class="form-label text-danger">最終績效獎金：<span class="info-badge">自動計算</span></label>
@@ -154,6 +167,7 @@
               <input type="number" name="AA09_bonus" id="AA09_bonus" class="form-control readonly-field" readonly value="{{ salary.AA09_bonus }}">
           </div>
       </div>
+      {% endif %}
     </div>
 
     <div id="other" class="tab-content">

@@ -651,7 +651,7 @@ def reinstate_employee(employee_id):
 @app.route('/edit_salary_tabs/<employee_id>', methods=['GET', 'POST'])
 @login_required
 def edit_salary_tabs(employee_id):
-    # 分頁欄位（新增 leave_payment_month）
+    # 分頁欄位
     fields_by_tab = {
         'salary': [
             'capacity_amout', 'Split_amount', 'AA09_bonus_view', 'daily_work_hr', 'holiday_work_hr', 'transition_hr', 
@@ -693,7 +693,7 @@ def edit_salary_tabs(employee_id):
     cursor.execute(
         """SELECT employee_birth, employee_onboard, qualification, subsidy, 
                   subsidy_none, subsidy_half, subsidy_full, leave_payment_month_of_year,
-                  labor_insurance_grade, health_insurance_grade
+                  labor_insurance_grade, health_insurance_grade, position
            FROM employee_info 
            WHERE employee_id = %s""",
         (employee_id,)
