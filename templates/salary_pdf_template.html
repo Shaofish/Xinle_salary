@@ -87,7 +87,12 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td rowspan="12" class="center">約定薪資結構</td><td>薪資 (本薪)</td><td>{{ row['薪資']|int }}</td><td></td></tr>
+                <tr>
+                    <td rowspan="13" class="center">約定薪資結構</td>
+                    <td>薪資 (本薪)</td>
+                    <td>{{ row['薪資']|int }}</td>
+                    <td></td>
+                </tr>
                 <tr><td>轉場薪資</td><td>{{ row['轉場薪資']|int }}</td><td></td></tr>
                 <tr><td>職務津貼</td><td>{{ row['職務津貼']|int }}</td><td></td></tr>
                 <tr><td>績效獎金</td><td>{{ row['績效獎金']|int }}</td><td></td></tr>
@@ -98,9 +103,16 @@
                 <tr><td>A碼鼓勵獎金</td><td>{{ row['A碼鼓勵獎金']|int }}</td><td></td></tr>
                 <tr><td>特休未休折現</td><td>{{ row['特休未休折現']|int }}</td><td></td></tr>
                 <tr><td>跨區補助</td><td>{{ row['跨區補助']|int }}</td><td></td></tr>
+                <tr><td>行政薪資</td><td>{{ row['行政薪資']|int }}</td><td></td></tr>
+                
                 <tr class="total-row"><td>合計 1</td><td>{{ row['合計1']|int }}</td><td></td></tr>
 
-                <tr><td rowspan="9" class="center">非固定支付項目</td><td>節日獎金</td><td>{{ row['節日獎金']|int }}</td><td></td></tr>
+                <tr>
+                    <td rowspan="9" class="center">非固定支付項目</td>
+                    <td>節日獎金</td>
+                    <td>{{ row['節日獎金']|int }}</td>
+                    <td></td>
+                </tr>
                 <tr><td>教育訓練費</td><td>{{ row['教育訓練費']|int }}</td><td></td></tr>
                 <tr><td>生日禮金</td><td>{{ row['生日禮金']|int }}</td><td></td></tr>
                 <tr><td>單一證照補助</td><td>{{ row['單一證照補助']|int }}</td><td></td></tr>
@@ -110,7 +122,12 @@
                 <tr><td>其他項目 (2)</td><td>{{ row['其他金額 2']|int }}</td><td>{{ row['其他項目 2'] }}</td></tr>
                 <tr class="total-row"><td>合計 2</td><td>{{ row['合計2']|int }}</td><td></td></tr>
 
-                <tr><td rowspan="8" class="center">應代扣項目</td><td>勞保費</td><td>{{ row['勞保費']|int }}</td><td></td></tr>
+                <tr>
+                    <td rowspan="8" class="center">應代扣項目</td>
+                    <td>勞保費</td>
+                    <td>{{ row['勞保費']|int }}</td>
+                    <td></td>
+                </tr>
                 <tr><td>健保費</td><td>{{ row['健保費']|int }}</td><td></td></tr>
                 <tr><td>照服員險代扣款</td><td>{{ row['照服員險代扣款']|int }}</td><td></td></tr>
                 <tr><td>團體意外險代扣款</td><td>{{ row['團體意外險代扣款']|int }}</td><td></td></tr>
