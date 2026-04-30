@@ -143,7 +143,7 @@
             <tr>
                 <th rowspan="2" class="head-main fw-bold">薪資年月</th>
                 
-                <th colspan="13" class="head-salary">應給項目 (薪資結構)</th>
+                <th colspan="12" class="head-salary">應給項目 (薪資結構)</th>
                 <th colspan="9" class="head-bonus">福利與各項補貼</th>
                 <th colspan="7" class="head-deduct">應代扣項目 (員工自付)</th>
                 <th colspan="2" class="head-main">支付統計</th>
@@ -151,7 +151,7 @@
                 <th rowspan="2" class="head-main col-remarks">備註</th>
             </tr>
             <tr>
-                {% for label in ['本薪','轉場','職務','平日加班','休息日','例假日','國定假日','績效獎金','A碼鼓勵','跨區補助','職務津貼','行政薪資','特休折現','節日','培訓','生日','證照','體檢','旅遊','新案','其他(1)','其他(2)','勞保','健保','照服險','意外險','勞退自提','代扣(1)','代扣(2)','應發','實發','公司勞保','公司職災','公司健保','公司勞退'] %}
+                {% for label in ['本薪','轉場','職務津貼','績效獎金','平日加班','休息日','例假日','國定假日','A碼鼓勵','特休折現','跨區補貼','行政薪資','節日','培訓','生日','證照','體檢','旅遊','新案','其他(1)','其他(2)','勞保','健保','照服險','意外險','勞退自提','代扣(1)','代扣(2)','應發','實發','公司勞保','公司職災','公司健保','公司勞退'] %}
                 <th class="col-data">{{ label }}</th>
                 {% endfor %}
             </tr>
@@ -165,16 +165,15 @@
                 <td class="col-data text-amount">{{ r.daily_work_salary|int }}</td>
                 <td class="col-data text-amount">{{ r.transition_allowance|int }}</td>
                 <td class="col-data text-amount">{{ r.duty_allowance|int }}</td>
+                <td class="col-data text-amount">{{ r.Performance_bonuses|int }}</td>
                 <td class="col-data text-amount">{{ r.total_overtime_pay_weekdays|int }}</td>
                 <td class="col-data text-amount">{{ r.total_overtime_pay_restdays|int }}</td>
                 <td class="col-data text-amount">{{ r.total_pay_holidays|int }}</td>
                 <td class="col-data text-amount">{{ r.total_pay_national_holidays|int }}</td>
-                <td class="col-data text-amount">{{ r.Performance_bonuses|int }}</td>
                 <td class="col-data text-amount">{{ r.AA09_bonus|int }}</td>
-                <td class="col-data text-amount">{{ r.Inter_district_subsidie|int }}</td>
-                <td class="col-data text-amount">{{ r.duty_allowance|int }}</td>
-                <td class="col-data text-amount">{{ r.administration_allowance|int }}</td>
                 <td class="col-data text-amount">{{ r.leave_deduction_amount|int }}</td>
+                <td class="col-data text-amount">{{ r.Inter_district_subsidie|int }}</td>
+                <td class="col-data text-amount">{{ r.administration_allowance|int }}</td>
                 
                 <td class="col-data text-amount">{{ r.holiday_bonus|int }}</td>
                 <td class="col-data text-amount">{{ r.training_fee|int }}</td>
