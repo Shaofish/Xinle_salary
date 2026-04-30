@@ -78,7 +78,6 @@ def get_all_available_months(employee_id):
     # 5. 回傳 (反序排列：最新的月份在上面)
     return sorted(all_months, reverse=True)
 
-
 def get_latest_salary(employee_id):
     cur = mysql.connection.cursor()
     cur.execute(
@@ -186,6 +185,13 @@ def safe_float(value):
         return float(value)
     except (ValueError, TypeError):
         return 0.0
+
+#比對兩個值是否實質相同，忽略 int/float 差異
+def values_equal(a, b):
+    try:
+        return float(a) == float(b)
+    except (ValueError, TypeError):
+        return str(a).strip() == str(b).strip()
     
 # ====== 欄位名稱中英對照（可自行增減）======
 column_mapping = {
@@ -829,12 +835,16 @@ def edit_salary_tabs(employee_id):
             cur.execute(sql, values + [employee_id, year_month])
 
             for idx, field in enumerate(all_fields):
-                old_value = str(existing.get(field, ''))
-                new_value = str(values[idx]) if values[idx] is not None else ''
-                if old_value != new_value:
-                    changed[field] = {"old": old_value, "new": new_value}
+                old_value = existing.get(field, '')
+                new_value = values[idx]
+                if not values_equal(old_value, new_value):
+                    changed[field] = {
+                        "old": str(old_value), 
+                        "new": str(new_value)
+                    }
 
             if changed:
+                changed['year_month'] = {"old": "", "new": str(year_month)}
                 log_edit(session['userid'], employee_id, 'edit_salary', changed)
         else:
             columns = ['employee_id', 'year_month'] + all_fields
@@ -846,10 +856,18 @@ def edit_salary_tabs(employee_id):
             cur.execute(sql, [employee_id, year_month] + values)
 
             for idx, field in enumerate(all_fields):
-                if values[idx] is not None and str(values[idx]) != '':
-                    changed[field] = {"old": '', "new": str(values[idx])}
+                val = values[idx]
+                try:
+                    # 數值欄位：不是 0 才記錄
+                    if val is not None and float(val) != 0:
+                        changed[field] = {"old": '', "new": str(val)}
+                except (ValueError, TypeError):
+                    # 文字欄位：不是空字串才記錄
+                    if val is not None and str(val).strip() != '':
+                        changed[field] = {"old": '', "new": str(val)}
 
             if changed:
+                changed['year_month'] = {"old": "", "new": str(year_month)}
                 log_edit(session['userid'], employee_id, 'add_salary', changed)
 
         mysql.connection.commit()
@@ -1009,7 +1027,7 @@ def edit_salary_tabs(employee_id):
                             subsidy_half=subsidy_half,
                             subsidy_full=subsidy_full,
                             past_two_months_hours=past_two_months_hours,
-                            info=info)  # ✨ 新增 info 傳遞
+                            info=info)
 
 # ====== 預覽薪資資料 ======
 @app.route('/preview_salary/<employee_id>')
@@ -1593,7 +1611,6 @@ def download_health_insurance_template():
                     mimetype='text/csv',
                     as_attachment=True,
                     download_name='health_insurance_template.csv')
-    
 
 # ====== 健保級距管理路由 ======
 @app.route('/health_insurance_level_manage', methods=['GET', 'POST'])
@@ -1688,6 +1705,7 @@ def health_insurance_level_manage():
                             levels=levels, 
                             available_years=available_years, 
                             selected_year=selected_year)
+
 # ==========薪資異動紀錄路由 (只看薪資相關)============
 @app.route('/edit_log_salary/<employee_id>')
 @login_required
@@ -1713,17 +1731,19 @@ def edit_log_salary(employee_id):
     for log in logs:
         # 轉換變更欄位為 dict
         original_fields = json.loads(log['changed_fields'])
+        log['year_month'] = original_fields.get('year_month', {}).get('new', '')
 
         # 將欄位名稱轉換為中文
         translated_fields = {}
         for key, value in original_fields.items():
+            if key == 'year_month':  # ← 跳過，不放進變更列表
+              continue
             chinese_key = column_mapping.get(key, key)
             translated_fields[chinese_key] = value
 
         log['changed_fields'] = translated_fields
         log['action_type'] = action_mapping.get(log['action_type'], log['action_type'])
     
-
     cursor.close()
     return render_template('edit_log_salary.html', logs=logs, employee_id=employee_id, employee_name=employee_name)
 
@@ -1831,7 +1851,6 @@ def import_history_process():
                         import_data[k] = v
             
             # 4. 🌟 核心補值邏輯：自動查表填入「公司負擔」相關欄位
-            
             # (A) 勞保、職保、勞退 6% 補值
             labor_grade = safe_int(import_data.get('total_payment_insure_grade', 0))
             if labor_grade > 0:

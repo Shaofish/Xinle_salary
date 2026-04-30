@@ -76,6 +76,11 @@
             </div>
             <span class="badge bg-warning text-dark fs-6">
                 {% if log.action_type == 'add_salary' %}新增薪資單{% else %}編輯薪資{% endif %}
+                {% if log.changed_fields and log.changed_fields.get('year_month') %}
+                    ({{ log.changed_fields.year_month.new }})
+                {% elif log.year_month %}
+                    ({{ log.year_month }})
+                {% endif %}
             </span>
         </div>
         
