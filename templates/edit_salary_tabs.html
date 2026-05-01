@@ -72,6 +72,7 @@
   <form method="POST" onsubmit="return validateForm()">
     <input type="hidden" id="employeePosition" value="{{ info.position }}">
     <input type="hidden" name="year_month" value="{{ selected_month }}">
+    <input type="hidden" id="past_two_months_hours" value="{{ past_two_months_hours }}">
 
     <div class="nav-tabs-custom">
       <div class="nav-link-custom active" onclick="showTab(this, 'salary')">1. 約定薪資結構</div>
@@ -764,7 +765,33 @@
         });
     });
 
-    function validateForm() { 
+    function attachCheckupAutoFill() {
+        const oneYearPassed = "{{ one_year_passed }}" === "True";
+        const checkbox = document.getElementById('enable_checkup');
+        const checkUpInput = document.getElementById('check_up');
+        if (!checkbox || !checkUpInput) return;
+        if (checkbox.checked) {
+            const serviceHours = parseFloat(document.getElementById('last_three_month_hours')?.value) || 0;
+            if (oneYearPassed && serviceHours >= 131) {
+                checkUpInput.value = 1200;
+            } else if (oneYearPassed && serviceHours >= 90 && serviceHours <= 130) {
+                checkUpInput.value = 600;
+            } else {
+                checkUpInput.value = 300;
+            }
+        } else {
+            checkUpInput.value = 0;
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const checkupCheckbox = document.getElementById('enable_checkup');
+        if (checkupCheckbox) {
+            checkupCheckbox.addEventListener('change', attachCheckupAutoFill);
+        }
+    });
+
+    function validateForm() {
         const aa09Input = document.getElementById("AA09_bonus");
         if (aa09Input && parseFloat(aa09Input.value) < 0) {
             aa09Input.value = 0;

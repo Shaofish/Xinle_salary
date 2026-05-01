@@ -736,7 +736,13 @@ def edit_salary_tabs(employee_id):
 
         # 收集表單資料 (使用 safe_int/float 防止報錯)
         values_dict = {}
-        
+        TEXT_FIELDS = [
+            'additional_withholding_items',
+            'additional_withholding2_items',
+            'extras',
+            'extras2',
+            'remarks'
+        ]
         for field in all_fields:
             val = request.form.get(field)
             
@@ -751,8 +757,8 @@ def edit_salary_tabs(employee_id):
                 else:
                     values_dict[field] = None
             
-            elif field in ['additional_withholding_items']: # 文字欄位直接存
-                 values_dict[field] = val if val else ''
+            elif field in TEXT_FIELDS:  
+                values_dict[field] = val.strip() if val and val.strip() else '無'
             
             else: # 其他預設都是數值欄位
                 # 判斷是否為浮點數欄位 (例如工時、獎金、金額)
@@ -760,7 +766,6 @@ def edit_salary_tabs(employee_id):
                      values_dict[field] = safe_float(val)
                 else:
                      values_dict[field] = safe_int(val)
-        
         # 將績效獎金改為非負
         try:
             perf_bonus = float(values_dict.get('Performance_bonuses', 0))
@@ -886,14 +891,14 @@ def edit_salary_tabs(employee_id):
     if not salary:
         salary = {'year_month': selected_month}
         for field in all_fields:
-            salary[field] = 0
+            salary[field] = '' if field in TEXT_FIELDS else 0
         salary['total_payment_insure_grade'] = info.get('labor_insurance_grade', 0)
         salary['health_insure_grade'] = info.get('health_insurance_grade', 0)
         
     else:
         for field in all_fields:
             if salary.get(field) is None:
-                salary[field] = 0
+                salary[field] = '' if field in TEXT_FIELDS else 0
         # 即使有紀錄，如果級距為 0，也可以考慮自動帶入預設（看客戶需求）
         if not salary.get('total_payment_insure_grade'):
             salary['total_payment_insure_grade'] = info.get('labor_insurance_grade', 0)
