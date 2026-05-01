@@ -669,7 +669,7 @@ def edit_salary_tabs(employee_id):
         ],
         'other': [
             'leave_days', 'leave_taken_days', 'annual_total_hours', 'leave_hours_per_day', 'total_service_hours',
-            'leave_pay_days', 'leave_deduction_amount', 'leave_payment_month'  # ✨ 新增
+            'leave_pay_days', 'leave_deduction_amount', 'leave_payment_month'  
         ],
         'bonus': [
             'licence_allowance', 'holiday_bonus', 'birthday_bonus', 'referral_fee', 'travel_allowance', 'check_up',
@@ -1267,7 +1267,7 @@ def export_excel(employee_id):
         SELECT 
             s.`year_month`, s.`employee_id`, i.`employee_birth`, i.`employee_card`, i.`employee_name`, i.`employee_onboard`,
             s.`capacity_amout`, s.`Split_amount`, s.`AA09_bonus_view`, s.`daily_work_hr`, s.`holiday_work_hr`, s.`total_hr`,
-            s.`daily_work_salary`, s.`duty_allowance`,s.`administration_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
+            s.`daily_work_salary`,s.`administration_allowance`, s.`duty_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
             s.`Overtime_pay_weekdays1112hr`, s.`total_overtime_pay_weekdays`,s.`Overtime_pay_rest_days12hr`, 
             s.`Overtime_pay_rest_days38hr`, s.`total_overtime_pay_restdays`,s.`holiday_overtime_hr`, s.`total_pay_holidays`, 
             s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
@@ -1383,7 +1383,7 @@ def export_excel_by_month(year_month):
         SELECT 
             s.`year_month`, s.`employee_id`, i.`employee_birth`, i.`employee_card`, i.`employee_name`, i.`employee_onboard`,
             s.`capacity_amout`, s.`Split_amount`, s.`AA09_bonus_view`, s.`daily_work_hr`, s.`holiday_work_hr`, s.`total_hr`,
-            s.`daily_work_salary`, s.`duty_allowance`, s.`administration_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
+            s.`daily_work_salary`,s.`administration_allowance`, s.`duty_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
             s.`Overtime_pay_weekdays1112hr`, s.`total_overtime_pay_weekdays`,s.`Overtime_pay_rest_days12hr`, 
             s.`Overtime_pay_rest_days38hr`, s.`total_overtime_pay_restdays`,s.`holiday_overtime_hr`, s.`total_pay_holidays`, 
             s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
