@@ -716,6 +716,22 @@ def edit_salary_tabs(employee_id):
     }
 
     all_fields = [item for sublist in fields_by_tab.values() for item in sublist]
+    TEXT_FIELDS = [
+        'additional_withholding_items',
+        'additional_withholding2_items',
+        'extras',
+        'extras2',
+        'remarks'
+    ]
+    FLOAT_FIELDS = {
+        'daily_work_hr', 'holiday_work_hr', 'total_hr', 'transition_hr', 'Overtime_pay_weekdays910hr', 
+        'Overtime_pay_weekdays1112hr', 'Overtime_pay_rest_days12hr', 'Overtime_pay_rest_days38hr',
+        'holiday_overtime_hr', 'National_holidays_hr','annual_total_hours', 'leave_hours_per_day',
+        'total_service_hours', 'leave_pay_days'
+    }
+    NULLABLE_INT_FIELDS = {
+        'leave_payment_month'  # 允許 NULL 的 int 欄位
+    }
     cur = mysql.connection.cursor()
     
     cursor = mysql.connection.cursor()
@@ -769,36 +785,23 @@ def edit_salary_tabs(employee_id):
 
         # 收集表單資料 (使用 safe_int/float 防止報錯)
         values_dict = {}
-        TEXT_FIELDS = [
-            'additional_withholding_items',
-            'additional_withholding2_items',
-            'extras',
-            'extras2',
-            'remarks'
-        ]
         for field in all_fields:
             val = request.form.get(field)
-            
             # 特殊欄位處理
             if field == 'birthday_bonus':
                 values_dict[field] = birthday_bonus # 這是後端算的，直接用
-            
-            elif field == 'leave_payment_month':
-                # 特休發放月：如果是空值，存成 None (NULL)，否則存 int
-                if val and val.strip():
-                    values_dict[field] = safe_int(val)
-                else:
-                    values_dict[field] = None
-            
-            elif field in TEXT_FIELDS:  
+
+            elif field in NULLABLE_INT_FIELDS:
+                values_dict[field] = safe_int(val) if val and val.strip() else None
+
+            elif field in TEXT_FIELDS:
                 values_dict[field] = val.strip() if val and val.strip() else '無'
-            
-            else: # 其他預設都是數值欄位
-                # 判斷是否為浮點數欄位 (例如工時、獎金、金額)
-                if 'hr' in field or 'bonus' in field or 'amount' in field or 'amout' in field:
-                     values_dict[field] = safe_float(val)
-                else:
-                     values_dict[field] = safe_int(val)
+
+            elif field in FLOAT_FIELDS:
+                values_dict[field] = safe_float(val)
+
+            else:
+                values_dict[field] = safe_int(val)
         # 將績效獎金改為非負
         try:
             perf_bonus = float(values_dict.get('Performance_bonuses', 0))
