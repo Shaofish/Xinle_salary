@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width: 500px; margin: 40px auto; background: white; padding: 40px; border-radius: 15px; border: 3px solid #2d3748;">
+    <h2 style="color: #1a365d; margin-bottom: 30px;">
+        <i class="fa-solid fa-calendar-pen"></i> 修改離職日期
+    </h2>
+    <p style="font-size: 22px;">員工：<strong>{{ emp.employee_name }}</strong></p>
+    <p style="font-size: 20px; color: #718096;">目前離職日：{{ emp.resign_date.strftime('%Y-%m-%d') if emp.resign_date else '未設定' }}</p>
+    
+    <form method="POST">
+        <label style="font-size: 22px; font-weight: bold; display: block; margin-bottom: 10px;">新離職日期：</label>
+        <input type="date" name="resign_date" 
+               value="{{ emp.resign_date.strftime('%Y-%m-%d') if emp.resign_date else '' }}"
+               style="width: 100%; font-size: 22px; padding: 12px; border: 2px solid #718096; border-radius: 10px; margin-bottom: 25px;">
+        
+        <div style="display: flex; gap: 15px;">
+            <button type="submit" class="btn btn-primary" style="font-size: 22px; padding: 12px 30px;">
+                <i class="fa-solid fa-save"></i> 確認修改
+            </button>
+            <a href="{{ url_for('employee_manage') }}" class="btn btn-secondary" style="font-size: 22px; padding: 12px 30px;">
+                取消
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -185,6 +185,8 @@
                     </td>
                     <td>
                         <div class="btn-row-group">
+                            <a href="{{ url_for('edit_resign_date', employee_id=e.employee_id) }}" 
+                                class="btn btn-sm-custom" style="background: #2b6cb0; color: white;">修改離職日</a>
                             <form method="POST" action="{{ url_for('reinstate_employee', employee_id=e.employee_id) }}" style="display: inline;">
                                 <button type="submit" class="btn btn-sm-custom" style="background: #4a5568; color: white;"
                                         onclick="return confirm('確定將該員工復職嗎？')">復職</button>

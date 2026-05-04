@@ -571,6 +571,39 @@ def edit_profile(employee_id):
     finally:
         cursor.close()
 
+@app.route('/edit_resign_date/<employee_id>', methods=['GET', 'POST'])
+@login_required
+def edit_resign_date(employee_id):
+    cursor = mysql.connection.cursor()
+    
+    if request.method == 'POST':
+        new_date = request.form.get('resign_date')
+        if new_date:
+            cursor.execute("""
+                UPDATE employee_info 
+                SET resign_date = %s 
+                WHERE employee_id = %s
+            """, (new_date, employee_id))
+            mysql.connection.commit()
+            flash(f'離職日期已更新為 {new_date}', 'success')
+        cursor.close()
+        return redirect(url_for('employee_manage'))
+    
+    # GET：顯示修改頁面
+    cursor.execute("""
+        SELECT employee_name, resign_date 
+        FROM employee_info 
+        WHERE employee_id = %s
+    """, (employee_id,))
+    emp = cursor.fetchone()
+    cursor.close()
+    
+    if not emp:
+        flash('找不到該員工', 'danger')
+        return redirect(url_for('employee_manage'))
+    
+    return render_template('edit_resign_date.html', employee_id=employee_id, emp=emp)
+
 # ====== 員工列表 ======
 @app.route('/employee_list')
 @login_required
