@@ -18,7 +18,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = '410770357=='  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -429,6 +429,7 @@ def edit_profile(employee_id):
 
         labor_grade = request.form.get('labor_insurance_grade') # 這裡不轉 int，因為可能是字串或特定格式
         health_grade = request.form.get('health_insurance_grade')
+        insurance_grade_year = safe_int(request.form.get('insurance_year', 0))
         
         qualification = safe_int(request.form.get('qualification'))
         subsidy = safe_int(request.form.get('subsidy'))
@@ -476,19 +477,15 @@ def edit_profile(employee_id):
             cursor.execute("""
                 UPDATE `employee_info`
                 SET `employee_id` = %s, `employee_name` = %s, `employee_birth` = %s, `employee_card` = %s, 
-                    `employee_onboard` = %s, `position` = %s, `qualification` = %s, `subsidy` = %s, 
+                    `employee_onboard` = %s, `position` = %s, `insurance_grade_year` = %s, `qualification` = %s, `subsidy` = %s, 
                     `subsidy_none` = %s, `subsidy_half` = %s, `subsidy_full` = %s, 
                     `leave_payment_month_of_year` = %s,
                     `labor_insurance_grade` = %s, `health_insurance_grade` = %s
                 WHERE `employee_id` = %s
             """, (new_employee_id, employee_name, employee_birth, employee_card, 
-                  employee_onboard, position, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full, 
+                  employee_onboard, position, insurance_grade_year, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full, 
                   leave_payment_month_of_year, labor_grade, health_grade, employee_id))
-
-            # Update 關聯表 (手動 Cascade)
-            # 注意：這裡的 WHERE 條件必須用 `employee_id` (舊 ID)，但因為我們關閉了外鍵檢查，且第一步已經改了主表，
-            # 這裡其實有點風險。比較穩健的做法是：如果 ID 有變，才執行這些。
-            
+          
             if new_employee_id != employee_id:
                 # 更新其他關聯表
                 cursor.execute("UPDATE `employee_salary` SET `employee_id` = %s WHERE `employee_id` = %s", (new_employee_id, employee_id))
@@ -554,12 +551,7 @@ def edit_profile(employee_id):
     # --- GET request 處理 ---
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor.execute("SELECT * FROM labor_insurance_level ORDER BY `range` ASC")
-        labor_levels = cursor.fetchall()
-        
-        cursor.execute("SELECT * FROM health_insurance_level ORDER BY `Range` ASC")
-        health_levels = cursor.fetchall()
-        
+        # 1. 先查員工資料
         cursor.execute("SELECT * FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
         employee = cursor.fetchone()
 
@@ -567,7 +559,26 @@ def edit_profile(employee_id):
             flash('找不到該員工資料', 'danger')
             return redirect(url_for('employee_manage'))
 
-        return render_template('edit_profile.html', employee=employee, labor_levels=labor_levels, health_levels=health_levels)
+        # 2. 再用員工資料決定年份
+        cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
+        labor_years = [row['effective_year'] for row in cursor.fetchall()]
+        current_year = datetime.today().year
+        saved_year = employee.get('insurance_grade_year', 0)
+        selected_labor_year = saved_year if saved_year in labor_years else (current_year if current_year in labor_years else labor_years[0])
+
+        # 3. 依年份載入級距
+        cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_labor_year,))
+        labor_levels = cursor.fetchall()
+
+        cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (selected_labor_year,))
+        health_levels = cursor.fetchall()
+
+        return render_template('edit_profile.html', 
+                            employee=employee, 
+                            labor_years=labor_years,
+                            selected_labor_year=selected_labor_year,
+                            labor_levels=labor_levels,
+                            health_levels=health_levels)
     finally:
         cursor.close()
 
@@ -1546,7 +1557,7 @@ def labor_insurance_level_manage():
     cursor = mysql.connection.cursor()
     
     # 1. 取得所有年份供標籤顯示
-    cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level ORDER BY effective_year DESC")
+    cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
     available_years = [row['effective_year'] for row in cursor.fetchall()]
     
     # 2. 決定目前顯示年份
@@ -1660,7 +1671,7 @@ def health_insurance_level_manage():
     cursor = mysql.connection.cursor()
     
     # 1. 取得所有年份 (供分頁標籤顯示)
-    cursor.execute("SELECT DISTINCT effective_year FROM health_insurance_level ORDER BY effective_year DESC")
+    cursor.execute("SELECT DISTINCT effective_year FROM health_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
     available_years = [row['effective_year'] for row in cursor.fetchall()]
     
     # 2. 決定目前查看的年份

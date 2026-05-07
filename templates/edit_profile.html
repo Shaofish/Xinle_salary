@@ -131,8 +131,16 @@
         <h4><i class="fa-solid fa-shield-halved"></i> 固定保險級距設定</h4>
         <div class="row">
             <div class="col-md-6 mb-4">
+                <label class="form-label">級距年份</label>
+                <select name="insurance_year" id="insurance_year" class="form-select" onchange="loadAllGrades()">
+                    {% for year in labor_years %}
+                    <option value="{{ year }}" {% if year == selected_labor_year %}selected{% endif %}>{{ year }} 年</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 mb-4">
                 <label class="form-label">勞保級距</label>
-                <select name="labor_insurance_grade" class="form-select">
+                <select name="labor_insurance_grade" id="labor_insurance_grade" class="form-select">
                     {% for level in labor_levels %}
                     <option value="{{ level.range }}" {% if employee.labor_insurance_grade == level.range %}selected{% endif %}>
                         {{ level.range }}
@@ -142,7 +150,7 @@
             </div>
             <div class="col-md-6 mb-4">
                 <label class="form-label">健保級距</label>
-                <select name="health_insurance_grade" class="form-select">
+                <select name="health_insurance_grade" id="health_insurance_grade" class="form-select">
                     {% for level in health_levels %}
                     <option value="{{ level.Range }}" {% if employee.health_insurance_grade == level.Range %}selected{% endif %}>
                         {{ level.Range }}
@@ -213,6 +221,50 @@
                 <i class="fa-solid fa-cloud-arrow-up"></i> 儲存修改內容
             </button>
         </div>
+        
+    <script>
+    function loadAllGrades() {
+        const year = document.getElementById('insurance_year').value;
+        const laborSelect = document.getElementById('labor_insurance_grade');
+        const healthSelect = document.getElementById('health_insurance_grade');
+        const currentLaborGrade = "{{ employee.labor_insurance_grade }}";
+        const currentHealthGrade = "{{ employee.health_insurance_grade }}";
+
+        laborSelect.innerHTML = '<option>載入中...</option>';
+        healthSelect.innerHTML = '<option>載入中...</option>';
+
+        // 同時發出兩個請求
+        Promise.all([
+            fetch(`/get_labor_insurance_levels/${year}`).then(r => r.json()),
+            fetch(`/get_health_insurance_levels/${year}`).then(r => r.json())
+        ])
+        .then(([laborLevels, healthLevels]) => {
+            // 填入勞保
+            laborSelect.innerHTML = '';
+            laborLevels.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.range;
+                opt.textContent = l.range;
+                if (String(l.range) === String(currentLaborGrade)) opt.selected = true;
+                laborSelect.appendChild(opt);
+            });
+
+            // 填入健保
+            healthSelect.innerHTML = '';
+            healthLevels.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.Range || l.range;
+                opt.textContent = l.Range || l.range;
+                if (String(l.Range || l.range) === String(currentHealthGrade)) opt.selected = true;
+                healthSelect.appendChild(opt);
+            });
+        })
+        .catch(() => {
+            laborSelect.innerHTML = '<option>載入失敗</option>';
+            healthSelect.innerHTML = '<option>載入失敗</option>';
+        });
+    }
+    </script>
     </form>
 </div>
 {% endblock %}
