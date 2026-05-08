@@ -209,7 +209,8 @@ column_mapping = {
     'remarks': '備註',
     'employment_status': '在職狀態',
     'main_total__overtime_pay': '加班費總計',
-    'labor_insurance_grade' : '勞保級距',
+    'labor_insurance_grade' : '勞保級距(個人)',
+    'health_insurance_grade': '健保級距(個人)',
     'company_total' : '公司總負擔額',
     'BGA_view' : 'B+G+A碼(觀看用)',
     'ultimate_salary' : '薪資總計',
@@ -277,9 +278,8 @@ column_mapping = {
     'extras2': '其他項目 2',
     'extras2_amount': '其他金額 2',
     #應代扣項目
-    'total_payment_insure_grade': '勞保級距',
-    'health_insure_grade': '健保級距',
-    'health_insurance_grade': '健保級距',
+    'total_payment_insure_grade': '勞保級距(薪資)',
+    'health_insure_grade': '健保級距(薪資)',
     'Labor_premiums': '勞保費',
     'Insurance_amount': '健保費',
     'company_labor': '公司勞保費',
@@ -1295,7 +1295,7 @@ def export_pdf(employee_id, year_month):
     if not rows:
         return "無資料可匯出", 404
 
-    rendered = render_template('salary_pdf_template.html', rows=rows, employee_id=employee_id)
+    rendered = render_template('salary_pdf_template.html', rows=rows, employee_id=employee_id, now_date=datetime.today().strftime('%Y/%m/%d'))
 
     configuration = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
     pdf_file = pdfkit.from_string(rendered, False, configuration=configuration)
