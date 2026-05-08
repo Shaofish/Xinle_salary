@@ -391,7 +391,7 @@ def add_employee():
                  `employee_onboard`, `position`, `qualification`, `subsidy`, 
                  `subsidy_none`, `subsidy_half`, `subsidy_full`, 
                  `leave_payment_month_of_year`, `labor_insurance_grade`, `health_insurance_grade`)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ,%s)
             """, (employee_id, employee_birth, employee_card, employee_name,
                   employee_onboard, position, qualification, subsidy,
                   subsidy_none, subsidy_half, subsidy_full, 
