@@ -373,6 +373,7 @@ def add_employee():
         employee_onboard = request.form['employee_onboard']
         position = request.form.get('position', '')
         # 新增級距欄位
+        insurance_grade_year = int(request.form.get('insurance_year', 0))
         labor_grade = request.form.get('labor_insurance_grade', 0)
         health_grade = request.form.get('health_insurance_grade', 0)
         
@@ -381,6 +382,12 @@ def add_employee():
         subsidy_none = int(request.form.get('subsidy_none', 0))
         subsidy_half = int(request.form.get('subsidy_half', 0))
         subsidy_full = int(request.form.get('subsidy_full', 0))
+        total_subsidy_dependents = subsidy_none + subsidy_half + subsidy_full
+        if qualification != total_subsidy_dependents:
+            # 準備要顯示的文字 (使用 \\n 來讓彈出視窗的文字換行，看起來更清楚)
+            error_msg = f"❌ 更新失敗：健保眷口設定不符！\\n\\n您選擇投保「{qualification} 名眷口」\\n但各項補助人數相加為 {total_subsidy_dependents} 人。"          
+            # 直接回傳 JavaScript：彈出警告，並退回上一頁 (保留使用者輸入的資料)
+            return f"<script>alert('{error_msg}'); window.history.back();</script>"
         leave_payment_month_of_year = request.form.get('leave_payment_month_of_year', None)
         if leave_payment_month_of_year == '': leave_payment_month_of_year = None
 
@@ -389,12 +396,12 @@ def add_employee():
                 INSERT INTO `employee_info` 
                 (`employee_id`, `employee_birth`, `employee_card`, `employee_name`, 
                  `employee_onboard`, `position`, `qualification`, `subsidy`, 
-                 `subsidy_none`, `subsidy_half`, `subsidy_full`, 
+                 `subsidy_none`, `subsidy_half`, `subsidy_full`, `insurance_grade_year`,
                  `leave_payment_month_of_year`, `labor_insurance_grade`, `health_insurance_grade`)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ,%s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ,%s ,%s)
             """, (employee_id, employee_birth, employee_card, employee_name,
                   employee_onboard, position, qualification, subsidy,
-                  subsidy_none, subsidy_half, subsidy_full, 
+                  subsidy_none, subsidy_half, subsidy_full, insurance_grade_year,
                   leave_payment_month_of_year, labor_grade, health_grade))
             mysql.connection.commit()
             flash("成功新增員工資料", "success")
@@ -404,13 +411,24 @@ def add_employee():
             return render_template('add_employee.html', data=request.form)
     
     # GET: 獲取級距列表供前端選單使用
-    cursor.execute("SELECT * FROM labor_insurance_level ORDER BY `range` ASC")
+    cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
+    labor_years = [row['effective_year'] for row in cursor.fetchall()]
+    current_year = datetime.today().year
+    selected_labor_year = current_year if current_year in labor_years else (labor_years[0] if labor_years else current_year)
+
+    cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_labor_year,))
     labor_levels = cursor.fetchall()
-    cursor.execute("SELECT * FROM health_insurance_level ORDER BY `Range` ASC")
+
+    cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (selected_labor_year,))
     health_levels = cursor.fetchall()
     cursor.close()
     
-    return render_template('add_employee.html', data={}, labor_levels=labor_levels, health_levels=health_levels)
+    return render_template('add_employee.html', 
+                            data={}, 
+                            labor_years=labor_years,
+                            selected_labor_year=selected_labor_year,
+                            labor_levels=labor_levels, 
+                            health_levels=health_levels)
 
 @app.route('/edit_profile/<employee_id>', methods=['GET', 'POST'])
 @login_required
@@ -440,12 +458,11 @@ def edit_profile(employee_id):
         total_subsidy_dependents = subsidy_none + subsidy_half + subsidy_full
         if qualification != total_subsidy_dependents:
             # 準備要顯示的文字 (使用 \\n 來讓彈出視窗的文字換行，看起來更清楚)
-            error_msg = f"❌ 更新失敗：健保眷口設定不符！\\n\\n您選擇投保「{qualification} 名眷口」\\n但各項補助人數相加為 {total_subsidy_dependents} 人。"
-            
+            error_msg = f"❌ 更新失敗：健保眷口設定不符！\\n\\n您選擇投保「{qualification} 名眷口」\\n但各項補助人數相加為 {total_subsidy_dependents} 人。"          
             # 直接回傳 JavaScript：彈出警告，並退回上一頁 (保留使用者輸入的資料)
             return f"<script>alert('{error_msg}'); window.history.back();</script>"
-        
         leave_month_input = request.form.get('leave_payment_month_of_year')
+
         if not leave_month_input or leave_month_input.strip() == "":
             leave_payment_month_of_year = 1  # 預設為 1 月
         else:

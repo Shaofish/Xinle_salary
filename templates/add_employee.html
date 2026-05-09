@@ -88,6 +88,10 @@
                 <label class="form-label">員工姓名 <span class="text-danger">*</span></label>
                 <input type="text" name="employee_name" class="form-control" placeholder="請輸入全名" required>
             </div>
+            <div class="col-md-6 mb-4">
+                <label class="form-label">身份證字號 <span class="text-danger">*</span></label>
+                <input type="text" name="employee_card" class="form-control" placeholder="A123456789" required>
+            </div>
         </div>
         <div class="row">
             <div class="col-md-4 mb-4">
@@ -95,11 +99,7 @@
                 <input type="date" name="employee_birth" class="form-control" required>
             </div>
             <div class="col-md-4 mb-4">
-                <label class="form-label">身份證字號 <span class="text-danger">*</span></label>
-                <input type="text" name="employee_card" class="form-control" placeholder="A123456789" required>
-            </div>
-            <div class="col-md-4 mb-4">
-                <label class="form-label">到職日 <span class="text-danger">*</span></label>
+                <label class="form-label">到職日期 <span class="text-danger">*</span></label>
                 <input type="date" name="employee_onboard" class="form-control" required>
             </div>
         </div>
@@ -117,6 +117,14 @@
         
         <h4 class="mb-4"><i class="fa-solid fa-shield-halved"></i> 固定保險級距設定</h4>
         <div class="row">
+            <div class="col-md-6 mb-4">
+                <label class="form-label">級距年份 <span class="text-danger">*</span></label>
+                <select name="insurance_year" id="insurance_year" class="form-select" onchange="loadAllGrades()" required>
+                    {% for year in labor_years %}
+                    <option value="{{ year }}">{{ year }} 年</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="col-md-6 mb-4">
                 <label class="form-label">勞保預設級距 <span class="text-danger">*</span></label>
                 <select name="labor_insurance_grade" class="form-select" required>
@@ -195,6 +203,42 @@
                 <i class="fa-solid fa-save me-2"></i> 確認新增員工資料
             </button>
         </div>
+    <script>
+    function loadAllGrades() {
+        const year = document.getElementById('insurance_year').value;
+        const laborSelect = document.getElementById('labor_insurance_grade');
+        const healthSelect = document.getElementById('health_insurance_grade');
+
+        laborSelect.innerHTML = '<option>載入中...</option>';
+        healthSelect.innerHTML = '<option>載入中...</option>';
+
+        Promise.all([
+            fetch(`/get_labor_insurance_levels/${year}`).then(r => r.json()),
+            fetch(`/get_health_insurance_levels/${year}`).then(r => r.json())
+        ])
+        .then(([laborLevels, healthLevels]) => {
+            laborSelect.innerHTML = '<option value="">請點擊選擇級距</option>';
+            laborLevels.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.range;
+                opt.textContent = l.range;
+                laborSelect.appendChild(opt);
+            });
+
+            healthSelect.innerHTML = '<option value="">請點擊選擇級距</option>';
+            healthLevels.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.Range || l.range;
+                opt.textContent = l.Range || l.range;
+                healthSelect.appendChild(opt);
+            });
+        })
+        .catch(() => {
+            laborSelect.innerHTML = '<option>載入失敗</option>';
+            healthSelect.innerHTML = '<option>載入失敗</option>';
+        });
+    }
+    </script>
     </form>
 </div>
 {% endblock %}
