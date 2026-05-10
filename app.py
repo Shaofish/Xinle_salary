@@ -563,6 +563,7 @@ def edit_profile(employee_id):
             return redirect(url_for('edit_profile', employee_id=employee_id))
         
         finally:
+            cursor.execute("SET FOREIGN_KEY_CHECKS=1")
             cursor.close()
 
     # --- GET request 處理 ---
