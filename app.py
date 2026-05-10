@@ -841,7 +841,8 @@ def edit_salary_tabs(employee_id):
 
         # === 計算補助條件 ===
         today = datetime.today().date()
-        one_year_passed = (today - info['employee_onboard']).days >= 365
+        onboard_date_only = info['employee_onboard'] if isinstance(info['employee_onboard'], date) else info['employee_onboard'].date()
+        one_year_passed = today >= onboard_date_only + relativedelta(years=1)
 
         # 近三個月服務時數：僅做判斷，不入庫
         try:
@@ -868,8 +869,8 @@ def edit_salary_tabs(employee_id):
         else:
             subsidy_rate = 0
 
-        caregiver_final = caregiver_raw - int(caregiver_raw * subsidy_rate)
-        group_final = group_raw - int(group_raw * subsidy_rate)
+        caregiver_final = caregiver_raw - round(caregiver_raw * subsidy_rate)
+        group_final = group_raw - round(group_raw * subsidy_rate)
 
         values_dict['home_caregiver_insurance'] = caregiver_final
         values_dict['group_accident_insurance'] = group_final
@@ -1045,7 +1046,8 @@ def edit_salary_tabs(employee_id):
 
     # 供前端預覽健檢補助判斷
     today = datetime.today().date()
-    one_year_passed = (today - info['employee_onboard']).days >= 365
+    onboard_date_only = info['employee_onboard'] if isinstance(info['employee_onboard'], date) else info['employee_onboard'].date()
+    one_year_passed = today >= onboard_date_only + relativedelta(years=1)
 
     action = request.args.get('action', 'edit')
     
