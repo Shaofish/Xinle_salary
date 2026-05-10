@@ -786,6 +786,7 @@ def edit_salary_tabs(employee_id):
     cursor.close()
 
     if not info:
+        cur.close()
         flash("找不到該員工資料", "danger")
         return redirect(url_for('employee_list'))
 
