@@ -407,6 +407,7 @@ def add_employee():
             flash("成功新增員工資料", "success")
             return redirect(url_for('employee_manage'))
         except IntegrityError:
+            cursor.close()
             flash("資料庫錯誤（請檢查ID是否重複）", "error")
             return render_template('add_employee.html', data=request.form)
     
@@ -944,6 +945,7 @@ def edit_salary_tabs(employee_id):
 
         mysql.connection.commit()
         session['salary_saved'] = True
+        cur.close()
         return redirect(url_for('employee_list'))
 
     # === GET 頁面載入 ===
@@ -1984,7 +1986,9 @@ def import_history_process():
             flash(f'⚠️ 提示：員工編號 {list(set(skipped_ids))} 不存在，已跳過。', 'warning')
         
     except Exception as e:
-        if 'cur' in locals(): mysql.connection.rollback()
+        if 'cur' in locals(): 
+            mysql.connection.rollback()
+            cur.close()
         flash(f'❌ 匯入失敗：{str(e)}', 'danger')
 
     return redirect(url_for('user'))

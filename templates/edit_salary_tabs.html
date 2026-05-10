@@ -189,19 +189,19 @@
       <div class="row">
           <div class="col-md-6 field-group">
               <label class="form-label">應給特休總天數：</label>
-              <input type="number" id="leave_days" name="leave_days" value="{{ salary.leave_days }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
+              <input type="number" id="leave_days" name="leave_days" value="{{ salary.leave_days }}" class="form-control" {% if not can_edit_paid_holiday %}readonly {% endif %}>
           </div>
           <div class="col-md-6 field-group">
               <label class="form-label">已請特休天數(不可超過應給特休總天數)：</label>
-              <input type="number" step="any" id="leave_taken_days" name="leave_taken_days" value="{{ salary.leave_taken_days }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
+              <input type="number" step="any" id="leave_taken_days" name="leave_taken_days" value="{{ salary.leave_taken_days }}" class="form-control" {% if not can_edit_paid_holiday %}readonly {% endif %}>
           </div>
           <div class="col-md-6 field-group">
               <label class="form-label">年度總工時：</label>
-              <input type="number" step="any" id="annual_total_hours" name="annual_total_hours" value="{{ salary.annual_total_hours }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
+              <input type="number" step="any" id="annual_total_hours" name="annual_total_hours" value="{{ salary.annual_total_hours }}" class="form-control" {% if not can_edit_paid_holiday %}readonly {% endif %}>
           </div>
           <div class="col-md-6 field-group">
               <label class="form-label">服務總時數：</label>
-              <input type="number" step="any" id="total_service_hours" name="total_service_hours" value="{{ salary.total_service_hours }}" class="form-control" {% if not can_edit_paid_holiday %}readonly class="readonly-field"{% endif %}>
+              <input type="number" step="any" id="total_service_hours" name="total_service_hours" value="{{ salary.total_service_hours }}" class="form-control" {% if not can_edit_paid_holiday %}readonly {% endif %}>
           </div>
       </div>
 
