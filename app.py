@@ -835,7 +835,7 @@ def edit_salary_tabs(employee_id):
                 values_dict[field] = safe_int(val)
         # 將績效獎金改為非負
         try:
-            perf_bonus = float(values_dict.get('Performance_bonuses', 0))
+            perf_bonus = round(values_dict.get('Performance_bonuses', 0))
             if perf_bonus < 0:
                 perf_bonus = 0
         except ValueError:
