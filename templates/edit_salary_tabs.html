@@ -161,11 +161,18 @@
       <div class="row mt-3 bg-light p-3 rounded border">
           <div class="col-md-6">
               <label class="form-label text-danger">最終績效獎金：<span class="info-badge">自動計算</span></label>
-              <input type="number" id="Performance_bonuses" name="Performance_bonuses" class="form-control readonly-field" readonly value="{{ salary.Performance_bonuses }}">
+              <input type="number" id="Pe   rformance_bonuses" name="Performance_bonuses" class="form-control readonly-field" readonly value="{{ salary.Performance_bonuses }}">
           </div>
           <div class="col-md-6">
               <label class="form-label text-danger">最終A碼獎金：<span class="info-badge">自動計算</span></label>
               <input type="number" name="AA09_bonus" id="AA09_bonus" class="form-control readonly-field" readonly value="{{ salary.AA09_bonus }}">
+          </div>
+      </div>
+      {% elif info.position == '行政' %}
+      <div class="row mt-3 bg-light p-3 rounded border">
+          <div class="col-md-6">
+              <label class="form-label text-danger">績效獎金： </span></label>
+              <input type="number" step="any" id="Performance_bonuses" name="Performance_bonuses" class="form-control numeric-input" value="{{ salary.Performance_bonuses }}" placeholder="請輸入行政績效獎金">
           </div>
       </div>
       {% endif %}
@@ -635,6 +642,7 @@
     }
 
     function calcPerformanceBonus() {
+        if (document.getElementById("employeePosition")?.value !== '居服') return;
         const get = n => {
             const el = document.querySelector(`input[name='${n}']`) || document.getElementById(n);
             return parseFloat(el ? el.value : 0) || 0;
