@@ -442,13 +442,22 @@ def edit_profile(employee_id):
         employee_card = request.form.get('employee_card')
         employee_onboard = request.form.get('employee_onboard')
         position = request.form.get('position', '')
-        # 處理數值 (防止空字串導致 int() 轉換失敗)
-        def safe_int(val):
-            return int(val) if val and val.strip() else 0
-
-        labor_grade = request.form.get('labor_insurance_grade') # 這裡不轉 int，因為可能是字串或特定格式
-        health_grade = request.form.get('health_insurance_grade')
-        insurance_grade_year = safe_int(request.form.get('insurance_year', 0))
+       
+        labor_input = request.form.get('labor_insurance_grade')
+        if labor_input and labor_input.strip().isdigit():
+            labor_grade = int(labor_input.strip())
+        else:
+            labor_grade = None
+        health_input = request.form.get('health_insurance_grade')
+        if health_input and health_input.strip().isdigit():
+            health_grade = int(health_input.strip())
+        else:
+            health_grade = None
+        insurance_grade_year = request.form.get('insurance_year')
+        if insurance_grade_year and insurance_grade_year.strip().isdigit():
+            insurance_grade_year = int(insurance_grade_year.strip())
+        else:
+            insurance_grade_year = None
         
         qualification = safe_int(request.form.get('qualification'))
         subsidy = safe_int(request.form.get('subsidy'))

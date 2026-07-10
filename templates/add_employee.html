@@ -118,16 +118,17 @@
         <h4 class="mb-4"><i class="fa-solid fa-shield-halved"></i> 固定保險級距設定</h4>
         <div class="row">
             <div class="col-md-6 mb-4">
-                <label class="form-label">級距年份 <span class="text-danger">*</span></label>
-                <select name="insurance_year" id="insurance_year" class="form-select" onchange="loadAllGrades()" required>
+                <label class="form-label">級距年份</label>
+                <select name="insurance_year" id="insurance_year" class="form-select" onchange="loadAllGrades()">
+                    <option value="">請選擇年份</option>
                     {% for year in labor_years %}
                     <option value="{{ year }}">{{ year }} 年</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-6 mb-4">
-                <label class="form-label">勞保預設級距 <span class="text-danger">*</span></label>
-                <select name="labor_insurance_grade" class="form-select" required>
+                <label class="form-label">勞保預設級距</label>
+                <select name="labor_insurance_grade" id="labor_insurance_grade" class="form-select">
                     <option value="">請點擊選擇級距</option>
                     {% for level in labor_levels %}
                     <option value="{{ level.range }}">{{ level.range }}</option>
@@ -135,8 +136,8 @@
                 </select>
             </div>
             <div class="col-md-6 mb-4">
-                <label class="form-label">健保預設級距 <span class="text-danger">*</span></label>
-                <select name="health_insurance_grade" class="form-select" required>
+                <label class="form-label">健保預設級距</label>
+                <select name="health_insurance_grade" id="health_insurance_grade" class="form-select">
                     <option value="">請點擊選擇級距</option>
                     {% for level in health_levels %}
                     <option value="{{ level.Range }}">{{ level.Range }}</option>
@@ -209,6 +210,12 @@
         const laborSelect = document.getElementById('labor_insurance_grade');
         const healthSelect = document.getElementById('health_insurance_grade');
 
+        if (!year) {
+            laborSelect.innerHTML = '<option value=""></option>';
+            healthSelect.innerHTML = '<option value=""></option>';
+            return;
+        }
+        
         laborSelect.innerHTML = '<option>載入中...</option>';
         healthSelect.innerHTML = '<option>載入中...</option>';
 
@@ -217,7 +224,7 @@
             fetch(`/get_health_insurance_levels/${year}`).then(r => r.json())
         ])
         .then(([laborLevels, healthLevels]) => {
-            laborSelect.innerHTML = '<option value="">請點擊選擇級距</option>';
+            laborSelect.innerHTML = '<option value=""></option>';
             laborLevels.forEach(l => {
                 const opt = document.createElement('option');
                 opt.value = l.range;
@@ -225,7 +232,7 @@
                 laborSelect.appendChild(opt);
             });
 
-            healthSelect.innerHTML = '<option value="">請點擊選擇級距</option>';
+            healthSelect.innerHTML = '<option value=""></option>';
             healthLevels.forEach(l => {
                 const opt = document.createElement('option');
                 opt.value = l.Range || l.range;

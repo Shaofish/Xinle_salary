@@ -133,14 +133,16 @@
             <div class="col-md-6 mb-4">
                 <label class="form-label">級距年份</label>
                 <select name="insurance_year" id="insurance_year" class="form-select" onchange="loadAllGrades()">
+                    <option value="">請選擇年份</option>
                     {% for year in labor_years %}
                     <option value="{{ year }}" {% if year == selected_labor_year %}selected{% endif %}>{{ year }} 年</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-6 mb-4">
-                <label class="form-label">勞保級距</label>
+                <label class="form-label">勞保預設級距</label>
                 <select name="labor_insurance_grade" id="labor_insurance_grade" class="form-select">
+                    <option value="">請選擇級距</option>
                     {% for level in labor_levels %}
                     <option value="{{ level.range }}" {% if employee.labor_insurance_grade == level.range %}selected{% endif %}>
                         {{ level.range }}
@@ -149,8 +151,9 @@
                 </select>
             </div>
             <div class="col-md-6 mb-4">
-                <label class="form-label">健保級距</label>
+                <label class="form-label">健保預設級距</label>
                 <select name="health_insurance_grade" id="health_insurance_grade" class="form-select">
+                    <option value="">請選擇級距</option>
                     {% for level in health_levels %}
                     <option value="{{ level.Range }}" {% if employee.health_insurance_grade == level.Range %}selected{% endif %}>
                         {{ level.Range }}
@@ -240,7 +243,7 @@
         ])
         .then(([laborLevels, healthLevels]) => {
             // 填入勞保
-            laborSelect.innerHTML = '';
+            laborSelect.innerHTML = '<option value="">請選擇級距</option>';
             laborLevels.forEach(l => {
                 const opt = document.createElement('option');
                 opt.value = l.range;
@@ -250,7 +253,7 @@
             });
 
             // 填入健保
-            healthSelect.innerHTML = '';
+            healthSelect.innerHTML = '<option value="">請選擇級距</option>';
             healthLevels.forEach(l => {
                 const opt = document.createElement('option');
                 opt.value = l.Range || l.range;
@@ -260,8 +263,8 @@
             });
         })
         .catch(() => {
-            laborSelect.innerHTML = '<option>載入失敗</option>';
-            healthSelect.innerHTML = '<option>載入失敗</option>';
+            laborSelect.innerHTML = '<option>請選擇級距</option>';
+            healthSelect.innerHTML = '<option>請選擇級距</option>';
         });
     }
     </script>
