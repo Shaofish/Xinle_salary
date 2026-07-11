@@ -965,8 +965,11 @@ def edit_salary_tabs(employee_id):
         (employee_id, selected_month)
     )
     salary = cur.fetchone()
+    
+    is_new_record = True
 
     if not salary:
+        is_new_record = True
         salary = {'year_month': selected_month}
         for field in all_fields:
             salary[field] = '' if field in TEXT_FIELDS else 0
@@ -974,6 +977,7 @@ def edit_salary_tabs(employee_id):
         salary['health_insure_grade'] = info.get('health_insurance_grade', 0)
         
     else:
+        is_new_record = False
         for field in all_fields:
             if salary.get(field) is None:
                 salary[field] = '' if field in TEXT_FIELDS else 0
@@ -1111,7 +1115,8 @@ def edit_salary_tabs(employee_id):
                             subsidy_half=subsidy_half,
                             subsidy_full=subsidy_full,
                             past_two_months_hours=past_two_months_hours,
-                            info=info)
+                            info=info,
+                            is_new_record=is_new_record)
 
 # ====== 預覽薪資資料 ======
 @app.route('/preview_salary/<employee_id>')
