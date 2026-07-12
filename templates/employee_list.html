@@ -110,9 +110,14 @@
     <a href="{{ url_for('user') }}" class="btn btn-secondary" style="font-size: 20px;">
         <i class="fa-solid fa-arrow-left"></i> 返回主頁
     </a>
-    <a href="{{ url_for('export_excel_select') }}" class="btn btn-add-large" style="background-color: #1a365d;">
-        <i class="fa-solid fa-file-excel"></i> 批次匯出薪資總表
-    </a>
+    <div class="d-flex gap-3 ms-auto">
+        <a href="{{ url_for('export_pdf_by_month') }}" class="btn btn-add-large" style="background-color: #800000;">
+            <i class="fa-solid fa-file-pdf"></i> 批次匯出薪資單PDF
+        </a>
+        <a href="{{ url_for('export_excel_select') }}" class="btn btn-add-large" style="background-color: #1a365d;">
+            <i class="fa-solid fa-file-excel"></i> 批次匯出薪資總表EXCEL
+        </a>
+    </div>
 </div>
 
 <div class="search-container" style="background: #f1f5f9; padding: 25px; border-radius: 15px; border: 2px solid #cbd5e0; margin-bottom: 30px;">

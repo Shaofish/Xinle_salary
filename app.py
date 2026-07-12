@@ -18,7 +18,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = '410770357=='  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -1460,6 +1460,119 @@ def export_excel_select():
                            default_year=current_year,
                            default_month=current_month,
                            button_text='匯出 Excel')
+
+# ====== 批次匯出 PDF - 選擇月份頁面 ======
+@app.route('/export_pdf_by_month', methods=['GET', 'POST'])
+@login_required
+def export_pdf_by_month():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT DISTINCT `year_month` FROM `employee_salary` ORDER BY `year_month` DESC")
+    months_data = [row['year_month'] for row in cur.fetchall()]
+    cur.close()
+
+    if not months_data:
+        flash("目前沒有任何薪資資料可供匯出", "danger")
+        return redirect(url_for('salary_setting'))
+
+    years = sorted({int(str(ym)[:4]) for ym in months_data}, reverse=True)
+    available_months_by_year = {}
+    for ym in months_data:
+        year = int(str(ym)[:4])
+        month = int(str(ym)[4:])
+        available_months_by_year.setdefault(year, []).append(month)
+
+    current_year = datetime.today().year
+    current_month = datetime.today().month
+
+    if request.method == 'POST':
+        selected_year = request.form.get('year')
+        selected_month = request.form.get('month')
+        if selected_year and selected_month:
+            year_month = f"{selected_year}{int(selected_month):02d}"
+            return redirect(url_for('export_pdf_batch', year_month=year_month))
+        else:
+            flash('請選擇年份與月份', 'danger')
+
+    return render_template('export_pdf_select.html',
+                            title='批次匯出薪資單PDF - 選擇月份',
+                            years=years,
+                            available_months_by_year=available_months_by_year,
+                            default_year=current_year,
+                            default_month=current_month,
+                            button_text='匯出該月所有PDF',
+                            batch_mode=True)
+
+# ====== 批次匯出 PDF - 生成 ZIP ======
+@app.route('/export_pdf_batch/<year_month>')
+@login_required
+def export_pdf_batch(year_month):
+    from urllib.parse import quote
+    import zipfile
+
+    cur = mysql.connection.cursor()
+    cur.execute(
+        "SELECT DISTINCT `員工編號` FROM `view_salary_export` WHERE `年/月` = %s",
+        (year_month,)
+    )
+    employee_ids = [row['員工編號'] for row in cur.fetchall()]
+
+    if not employee_ids:
+        cur.close()
+        flash(f"{year_month} 沒有任何薪資資料可供匯出", "danger")
+        return redirect(url_for('export_pdf_batch_select'))
+
+    configuration = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
+
+    zip_buffer = BytesIO()
+    success_count = 0
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for employee_id in employee_ids:
+            # 查詢員工姓名
+            cur.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+            employee_info = cur.fetchone()
+            employee_name = employee_info['employee_name'] if employee_info else employee_id
+
+            # 查詢薪資資料
+            cur.execute(
+                "SELECT * FROM `view_salary_export` WHERE `員工編號` = %s AND `年/月` = %s",
+                (employee_id, year_month)
+            )
+            rows = cur.fetchall()
+
+            if not rows:
+                continue
+
+            try:
+                rendered = render_template(
+                    'salary_pdf_template.html',
+                    rows=rows,
+                    employee_id=employee_id,
+                    now_date=datetime.today().strftime('%Y/%m/%d')
+                )
+                pdf_file = pdfkit.from_string(rendered, False, configuration=configuration)
+
+                pdf_filename = f"{employee_name}{year_month}.pdf"
+                zf.writestr(pdf_filename, pdf_file)
+                success_count += 1
+            except Exception as e:
+                print(f"匯出 {employee_id} PDF 失敗: {e}")
+                continue
+
+    cur.close()
+
+    if success_count == 0:
+        flash(f"{year_month} 沒有任何員工成功匯出PDF", "danger")
+        return redirect(url_for('export_pdf_batch_select'))
+
+    zip_buffer.seek(0)
+    zip_filename = f"{year_month}薪資單批次匯出.zip"
+    encoded_filename = quote(zip_filename)
+
+    response = make_response(zip_buffer.read())
+    response.headers['Content-Type'] = 'application/zip'
+    response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_filename}"
+    return response
 
 # ====== 匯出 Excel - 生成 Excel ======
 @app.route('/export_excel_by_month/<year_month>')
