@@ -4,52 +4,34 @@
     <meta charset="UTF-8">
     <title>薪資單 - {{ rows[0]['姓名'] }}</title>
     <style>
-        /* 設定頁面邊距 */
         @page {
             size: A4;
-            margin: 1cm;
+            margin: 0.5cm;
         }
 
         body { 
             font-family: "MSung-Light", "Arial Unicode MS", sans-serif; 
             padding: 0; 
             margin: 0; 
-            font-size: 14px; 
+            font-size: 17px; 
+            line-height: 1.15;
             color: #333; 
         }
 
-        .header { text-align: center; margin-bottom: 15px; }
+        .header { text-align: center; margin-bottom: 8px; }
         .info-table { width: 100%; margin-bottom: 5px; border: none; }
         
         .salary-table { width: 100%; border-collapse: collapse; margin-bottom: 0px; table-layout: fixed; }
-        .salary-table th, .salary-table td { border: 1px solid #000; padding: 6px; text-align: left; word-wrap: break-word; }
+        .salary-table th, .salary-table td { border: 1px solid #000; padding: 6px 8px; text-align: left; word-wrap: break-word; }
         .salary-table th { background-color: #f2f2f2; text-align: center; font-weight: bold; }
         
         .center { text-align: center; }
         .total-row { font-weight: bold; background-color: #fafafa; }
 
-        /* 紅字強調樣式 */
-        .text-red {
-            color: #FF0000 !important;
-            font-weight: bold;
-        }
-
-        /* 轉帳資訊背景色 */
-        .bg-transfer {
-            background-color: #f4cb6b !important;
-            font-weight: bold;
-        }
-
-        /* 灰色背景 (公司負擔) */
+        .text-red { color: #FF0000 !important; font-weight: bold; }
+        .bg-transfer { background-color: #f4cb6b !important; font-weight: bold; }
         .bg-gray { background-color: #f9f9f9; }
-
-        /* 黃底黑字 (居服/A碼) */
-        .highlight-yellow {
-            background-color: #FFFF00 !important;
-            color: #000000 !important;
-            font-weight: bold;
-            text-align: center;
-        }
+        .highlight-yellow { background-color: #FFFF00 !important; color: #000000 !important; font-weight: bold; text-align: center; }
 
         .page-container { page-break-after: always; }
         .page-container:last-child { page-break-after: avoid; }
@@ -59,9 +41,8 @@
     {% for row in rows %}
     <div class="page-container">
         <div class="header">
-            <h2 style="margin: 0; font-size: 24px;">私立馨樂員工薪資單</h2>
-            <div style="font-size: 18px; margin-top: 5px; font-weight: bold;">
-                {# 假設 row['年/月'] 為 202601 格式，進行民國年轉換 #}
+            <h2 style="margin: 0; font-size: 25px;">新北市私立馨樂居家長照機構</h2>
+            <div style="font-size: 20px; margin-top: 4px; font-weight: bold;">
                 {% set ym = row['年/月']|string %}
                 {% set year = ym[:4]|int %}
                 {% set month = ym[4:] %}
@@ -173,9 +154,6 @@
             </tbody>
         </table>
 
-        <div style="font-size: 12px; margin-top: 10px; color: #666;">
-            <p style="margin: 0;">* 本薪資單內容僅供參考，如有疑問請於發薪三日內洽行政人員。</p>
-        </div>
     </div>
     {% endfor %}
 </body>
