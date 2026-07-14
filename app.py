@@ -193,7 +193,7 @@ def values_equal(a, b):
     except (ValueError, TypeError):
         return str(a).strip() == str(b).strip()
     
-# ====== 欄位名稱中英對照（可自行增減）======
+# ====== 欄位名稱中英對照 ======
 column_mapping = {
     'year_month': '年月',
     'total_hr': '總工時',
@@ -208,10 +208,7 @@ column_mapping = {
     'paid_in_salary': '實領薪資',
     'remarks': '備註',
     'employment_status': '在職狀態',
-    'main_total__overtime_pay': '加班費總計',
-    'labor_insurance_grade' : '勞保級距(個人)',
-    'health_insurance_grade': '健保級距(個人)',
-    'company_total' : '公司總負擔額',
+    'main_total__overtime_pay': '加班費總計',   
     'BGA_view' : 'B+G+A碼(觀看用)',
     'ultimate_salary' : '薪資總計',
     #個人資料
@@ -221,6 +218,8 @@ column_mapping = {
     'employee_name': '姓名',
     'employee_onboard': '到職日',
     'position': '職位名稱',
+    'labor_insurance_grade' : '勞保級距(個人)',
+    'health_insurance_grade': '健保級距(個人)',
     'subsidy_full': '全額補助人數',
     'subsidy_half': '半額補助人數',
     'subsidy_none': '無補助人數',
@@ -234,17 +233,17 @@ column_mapping = {
     'holiday_work_hr': '假日時數',
     'transition_hr': '轉場時數',
     'transition_allowance': '轉場津貼',
-    'Overtime_pay_rest_days12hr': '休息日加班時數(1-2)',
-    'Overtime_pay_rest_days38hr': '休息日加班時數(3-8)',
-    'total_overtime_pay_restdays' : '休息日總加班費',
     'Overtime_pay_weekdays910hr': '平日加班時數(9-10)',
     'Overtime_pay_weekdays1112hr': '平日加班時數(11-12)',
     'Overtime_pay_weekdays910': '平日加班費(9-10)',
     'Overtime_pay_weekdays1112': '平日加班費(11-12)',
-    'total_overtime_pay_weekdays': '平日總加班費',
-    'Performance_bonuses': '績效獎金',
+    'Overtime_pay_rest_days12hr': '休息日加班時數(1-2)',
+    'Overtime_pay_rest_days38hr': '休息日加班時數(3-8)',
     'Overtime_pay_rest_days12': '休息日加班費(1-2)',
     'Overtime_pay_rest_days38': '休息日加班費(3-8)',
+    'total_overtime_pay_weekdays': '平日總加班費',
+    'total_overtime_pay_restdays' : '休息日總加班費',
+    'Performance_bonuses': '績效獎金',
     'holiday_overtime_hr': '例假日班加班總時數',
     'total_pay_holidays': '例假日班加班費總金額',
     'National_holidays_hr': '國定假日時數',
@@ -286,6 +285,7 @@ column_mapping = {
     'company_occu': '公司職災費',
     'company_health': '公司健保費', 
     'company_retire': '公司退休金',
+    'company_total' : '公司總負擔額',
     'retirement_plan_withdraw': '勞退自提',
     'home_caregiver_insurance': '照服員險',
     'group_accident_insurance': '團體意外險',
