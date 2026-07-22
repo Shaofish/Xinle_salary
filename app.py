@@ -372,10 +372,22 @@ def add_employee():
         employee_name = request.form['employee_name']
         employee_onboard = request.form['employee_onboard']
         position = request.form.get('position', '')
-        # 新增級距欄位
-        insurance_grade_year = int(request.form.get('insurance_year', 0))
-        labor_grade = request.form.get('labor_insurance_grade', 0)
-        health_grade = request.form.get('health_insurance_grade', 0)
+
+        labor_input = request.form.get('labor_insurance_grade')
+        if labor_input and labor_input.strip().isdigit():
+            labor_grade = int(labor_input.strip())
+        else:
+            labor_grade = None
+        health_input = request.form.get('health_insurance_grade')
+        if health_input and health_input.strip().isdigit():
+            health_grade = int(health_input.strip())
+        else:
+            health_grade = None
+        insurance_grade_year = request.form.get('insurance_year')
+        if insurance_grade_year and insurance_grade_year.strip().isdigit():
+            insurance_grade_year = int(insurance_grade_year.strip())
+        else:
+            insurance_grade_year = None
         
         qualification = int(request.form.get('qualification', 0))
         subsidy = int(request.form.get('subsidy', 0))
