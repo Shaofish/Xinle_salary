@@ -24,9 +24,11 @@
         /* wkhtmltopdf 不會自動把 table 的 height 分配到每一列，改用直接放大 padding/line-height 填滿。
            實測：內容原本在 23.7cm 處結束，下方空了約 5.5cm。
            這裡刻意「不」完全填滿，而是保留約 2.5~2.7cm 緩衝空間，
-           用來吸收備註欄位偶爾跳成 2 行時多出來的高度 (見下方 .remark-cell 的 2 行上限保護)，
-           避免備註一變長就整頁被推去第二頁。若之後想再更滿版，
-           可以再小幅調高 padding / line-height，但緩衝空間會跟著變小。 */
+           用來吸收備註欄位偶爾跳成 2 行時多出來的高度，避免備註一變長
+           就整頁被推去第二頁。備註不再限制行數、不截斷，若備註內容
+           真的非常長（例如好幾行），仍有機率超出這個緩衝而跨頁——
+           這是保留完整資訊下無法完全避免的取捨，但一般長度的備註
+           (1~2行) 都在緩衝範圍內，不會有問題。 */
         .salary-table {
             width: 100%;
             border-collapse: collapse;
@@ -39,19 +41,6 @@
             word-wrap: break-word;
         }
         .salary-table th { background-color: #f2f2f2; text-align: center; font-weight: bold; }
-
-        /* 備註欄安全閥：不管使用者打多長的文字，最多只顯示 2 行，
-           超過的部分自動截斷並顯示「…」，確保該列高度有上限，
-           不會無限撐高把整頁擠到第二頁。
-           wkhtmltopdf 的引擎是 WebKit 系，原生支援 -webkit-line-clamp。 */
-        .remark-cell {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            word-wrap: break-word;
-        }
         
         .center { text-align: center; }
         .total-row { font-weight: bold; background-color: #fafafa; }
@@ -132,8 +121,8 @@
                 <tr><td>體檢補助</td><td>{{ row['體檢補助']|int }}</td><td></td></tr>
                 <tr><td>旅遊補助</td><td>{{ row['旅遊補助']|int }}</td><td></td></tr>
                 <tr><td>開發新案獎金</td><td>{{ row['開發新案獎金']|int }}</td><td></td></tr>
-                <tr><td>其他項目 (1)</td><td>{{ row['其他金額 1']|int }}</td><td><span class="remark-cell">{{ row['其他項目 1'] }}</span></td></tr>
-                <tr><td>其他項目 (2)</td><td>{{ row['其他金額 2']|int }}</td><td><span class="remark-cell">{{ row['其他項目 2'] }}</span></td></tr>
+                <tr><td>其他項目 (1)</td><td>{{ row['其他金額 1']|int }}</td><td>{{ row['其他項目 1'] }}</td></tr>
+                <tr><td>其他項目 (2)</td><td>{{ row['其他金額 2']|int }}</td><td>{{ row['其他項目 2'] }}</td></tr>
                 <tr class="total-row"><td>合計 2</td><td>{{ row['合計2']|int }}</td><td></td></tr>
 
                 <tr>
@@ -146,8 +135,8 @@
                 <tr><td>照服員險代扣款</td><td>{{ row['照服員險代扣款']|int }}</td><td></td></tr>
                 <tr><td>團體意外險代扣款</td><td>{{ row['團體意外險代扣款']|int }}</td><td></td></tr>
                 <tr><td>勞退自提</td><td>{{ row['自願提撥退休金']|int }}</td><td></td></tr>
-                <tr><td>其他代扣項目 (1)</td><td>{{ row['其他代扣金額 1']|int }}</td><td><span class="remark-cell">{{ row['其他代扣項目 1'] }}</span></td></tr>
-                <tr><td>其他代扣項目 (2)</td><td>{{ row['其他代扣金額 2']|int }}</td><td><span class="remark-cell">{{ row['其他代扣項目 2'] }}</span></td></tr>
+                <tr><td>其他代扣項目 (1)</td><td>{{ row['其他代扣金額 1']|int }}</td><td>{{ row['其他代扣項目 1'] }}</td></tr>
+                <tr><td>其他代扣項目 (2)</td><td>{{ row['其他代扣金額 2']|int }}</td><td>{{ row['其他代扣項目 2'] }}</td></tr>
                 <tr class="total-row"><td>代扣合計</td><td>{{ row['代扣合計']|int }}</td><td></td></tr>
 
                 <tr class="total-row" style="border-top: 2px solid #000;">
