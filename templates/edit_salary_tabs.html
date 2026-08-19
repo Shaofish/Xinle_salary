@@ -522,7 +522,6 @@
         document.getElementById('company_labor').value = l.company_labor;
         document.getElementById('company_occu').value = l.company_occu;
         document.getElementById('company_retire').value = l.company_retire;
-        syncRetirementRadio();
     }
 
     function updateHealthInsurance(json) {
@@ -560,6 +559,11 @@
 
         } catch (e) {
             console.error("❌ 健保計算失敗:", e);
+        }
+        if (document.getElementById('radio_6')?.checked) {
+            calcRetirement(6);
+        } else {
+            syncRetirementRadio();
         }
     }
 
@@ -724,26 +728,53 @@
         if (document.getElementById("leave_deduction_amount")) document.getElementById("leave_deduction_amount").value = Math.round(payDays * 8 * HOURLY_WAGE);
     }
 
+    function parseInsuranceGrade(value) {
+        return parseFloat(String(value ?? '').replace(/,/g, '')) || 0;
+    }
+
     function syncRetirementRadio() {
-        const val = parseFloat(document.getElementById('retirement_plan_withdraw')?.value) || 0;
-        const grade = parseFloat(document.getElementById('total_payment_insure_grade')?.value) || 0;
+        const val =
+            parseFloat(document.getElementById('retirement_plan_withdraw')?.value) || 0;
+
+        // 改成取得健保投保級距
+        const grade = parseInsuranceGrade(
+            document.getElementById('health_insure_grade')?.value
+        );
+
         const r0 = document.getElementById('radio_0');
         const r6 = document.getElementById('radio_6');
+
         if (r0 && r6) {
             r0.checked = (val === 0);
-            r6.checked = (grade > 0 && val === Math.round(grade * 0.06));
+            r6.checked = (
+                grade > 0 &&
+                val === Math.round(grade * 0.06)
+            );
         }
     }
 
     function calcRetirement(percent) {
-        const gradeVal = parseFloat(document.getElementById('total_payment_insure_grade').value) || 0;
-        const withdrawInput = document.getElementById('retirement_plan_withdraw');
+        // 改成取得健保投保級距
+        const gradeVal = parseInsuranceGrade(
+            document.getElementById('health_insure_grade')?.value
+        );
+
+        const withdrawInput =
+            document.getElementById('retirement_plan_withdraw');
+
         if (gradeVal === 0) {
-            alert('請先選擇「勞保投保級距」！');
-            if (document.getElementById('radio_' + percent)) document.getElementById('radio_' + percent).checked = false;
+            alert('請先選擇「健保投保級距」！');
+
+            const radio = document.getElementById('radio_' + percent);
+            if (radio) radio.checked = false;
+
             return;
         }
-        withdrawInput.value = percent === 0 ? 0 : Math.round(gradeVal * (percent / 100));
+
+        withdrawInput.value =
+            percent === 0
+                ? 0
+                : Math.round(gradeVal * (percent / 100));
     }
 
     // 即時計算包含當月的「近三個月平均時數」
