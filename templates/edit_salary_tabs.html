@@ -409,6 +409,7 @@
   <script>
     const HOURLY_WAGE = 200;
     const isNewRecord = "{{ is_new_record }}" === "True";
+    const insuranceCopiedFromPrevious = "{{ insurance_copied_from_previous }}" === "True";
     // ==========================================
     // 1. 資料抓取區 (AJAX Fetch) - 解決「顯示讀取中」的問題
     // ==========================================
@@ -437,7 +438,7 @@
             });
             
             if (select.value) {
-                if (isNewRecord) {
+                if (isNewRecord && !insuranceCopiedFromPrevious) {
                     updateLaborInsurance(select.value);
                 } else {
                     const l = JSON.parse(select.value);
@@ -476,7 +477,7 @@
             });
 
             if (select.value) {
-                if (isNewRecord) {
+                if (isNewRecord && !insuranceCopiedFromPrevious) {
                     updateHealthInsurance(select.value);
                 } else {
                     const l = JSON.parse(select.value);

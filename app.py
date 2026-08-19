@@ -18,7 +18,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'gtololol01314'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -766,6 +766,16 @@ def edit_salary_tabs(employee_id):
         ]
     }
 
+    # 新增月份時，從「前一個日曆月」延續到勞健保與代扣頁面的欄位。
+    # 健檢補助、額外代扣 1/2、備註，以及僅供畫面試算的近三個月平均時數不延續。
+    INSURANCE_CARRY_FORWARD_FIELDS = [
+        'total_payment_insure_grade', 'health_insure_grade',
+        'Labor_premiums', 'Insurance_amount', 'retirement_plan_withdraw',
+        'home_caregiver_insurance', 'group_accident_insurance',
+        'company_labor', 'company_occu', 'company_health',
+        'company_retire', 'company_total'
+    ]
+
     all_fields = [item for sublist in fields_by_tab.values() for item in sublist]
     TEXT_FIELDS = [
         'additional_withholding_items',
@@ -816,6 +826,7 @@ def edit_salary_tabs(employee_id):
     selected_month = request.args.get('year_month') or request.form.get('year_month')
     selected_month = int(selected_month) if selected_month else int(datetime.today().strftime('%Y%m'))
     selected_dt = datetime.strptime(str(selected_month), "%Y%m")
+    action = request.args.get('action', 'edit')
     
     # 計算到職滿一年的日期
     onboard_date = info['employee_onboard']
@@ -979,14 +990,40 @@ def edit_salary_tabs(employee_id):
     salary = cur.fetchone()
     
     is_new_record = True
+    insurance_copied_from_previous = False
 
     if not salary:
         is_new_record = True
         salary = {'year_month': selected_month}
         for field in all_fields:
             salary[field] = '' if field in TEXT_FIELDS else 0
-        salary['total_payment_insure_grade'] = info.get('labor_insurance_grade', 0)
-        salary['health_insure_grade'] = info.get('health_insurance_grade', 0)
+
+        # 只有透過「新增月份」進入時，才從前一個日曆月帶入勞健保資料。
+        if action == 'add':
+            previous_month = int(
+                (selected_dt - relativedelta(months=1)).strftime('%Y%m')
+            )
+            carry_columns = ', '.join(
+                f'`{field}`' for field in INSURANCE_CARRY_FORWARD_FIELDS
+            )
+            cur.execute(
+                f"""SELECT {carry_columns}
+                    FROM `employee_salary`
+                    WHERE `employee_id` = %s AND `year_month` = %s""",
+                (employee_id, previous_month)
+            )
+            previous_salary = cur.fetchone()
+
+            if previous_salary:
+                for field in INSURANCE_CARRY_FORWARD_FIELDS:
+                    previous_value = previous_salary.get(field)
+                    salary[field] = previous_value if previous_value is not None else 0
+                insurance_copied_from_previous = True
+
+        # 上個月沒有資料時，級距仍使用員工基本資料的預設值。
+        if not insurance_copied_from_previous:
+            salary['total_payment_insure_grade'] = info.get('labor_insurance_grade', 0)
+            salary['health_insure_grade'] = info.get('health_insurance_grade', 0)
         
     else:
         is_new_record = False
@@ -1078,8 +1115,6 @@ def edit_salary_tabs(employee_id):
     onboard_date_only = info['employee_onboard'] if isinstance(info['employee_onboard'], date) else info['employee_onboard'].date()
     one_year_passed = today >= onboard_date_only + relativedelta(years=1)
 
-    action = request.args.get('action', 'edit')
-    
     # 取得員工補助資訊
     qualification = info.get('qualification', 0) if info else 0
     subsidy = info.get('subsidy', 0) if info else 0
@@ -1128,7 +1163,8 @@ def edit_salary_tabs(employee_id):
                             subsidy_full=subsidy_full,
                             past_two_months_hours=past_two_months_hours,
                             info=info,
-                            is_new_record=is_new_record)
+                            is_new_record=is_new_record,
+                            insurance_copied_from_previous=insurance_copied_from_previous)
 
 # ====== 預覽薪資資料 ======
 @app.route('/preview_salary/<employee_id>')
