@@ -61,9 +61,11 @@
 </style>
 
 <div class="logout-section">
-    <a href="/" class="btn btn-danger" id="logoutBtn">
-        <i class="fa-solid fa-right-from-bracket me-2"></i> 安全登出
-    </a>
+    <form method="POST" action="{{ url_for('logout') }}" id="logoutForm">
+        <button type="submit" class="btn btn-danger">
+            <i class="fa-solid fa-right-from-bracket me-2"></i> 安全登出
+        </button>
+    </form>
 </div>
 
 <div class="welcome-section">
@@ -100,7 +102,7 @@
 </div>
 
 <script>
-    document.getElementById("logoutBtn").onclick = function(e) {
+    document.getElementById("logoutForm").onsubmit = function(e) {
         if(!confirm("確定要登出系統嗎？")) e.preventDefault();
     };
 </script>

@@ -1,0 +1,8 @@
+Flask
+Flask-MySQLdb
+mysqlclient
+pdfkit
+pandas
+PyMySQL
+python-dateutil
+numpy

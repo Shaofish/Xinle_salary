@@ -333,6 +333,13 @@ def user():
         flash("登入成功", "success")
     return render_template('user.html')
 
+@app.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    session.clear()
+    flash('已安全登出', 'success')
+    return redirect(url_for('login'))
+
 # ===== 員工管理頁面 =====
 @app.route('/employee_manage')
 @login_required
