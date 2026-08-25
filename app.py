@@ -604,7 +604,7 @@ def edit_profile(employee_id):
         labor_years = [row['effective_year'] for row in cursor.fetchall()]
         current_year = datetime.today().year
         saved_year = employee.get('insurance_grade_year', 0)
-        selected_labor_year = saved_year if saved_year in labor_years else (current_year if current_year in labor_years else labor_years[0])
+        selected_labor_year = saved_year if saved_year in labor_years else (current_year if current_year in labor_years else (labor_years[0] if labor_years else None))
 
         # 3. 依年份載入級距
         cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_labor_year,))
@@ -1479,7 +1479,7 @@ def export_excel_select():
 
     if not months_data:
         flash("目前沒有任何薪資資料可供匯出", "danger")
-        return redirect(url_for('salary_setting'))
+        return redirect(url_for('employee_list'))
 
     # 拆成年份與月份，整理成 dict 給前端用
     years = sorted({int(str(ym)[:4]) for ym in months_data}, reverse=True)
@@ -1520,7 +1520,7 @@ def export_pdf_by_month():
 
     if not months_data:
         flash("目前沒有任何薪資資料可供匯出", "danger")
-        return redirect(url_for('salary_setting'))
+        return redirect(url_for('employee_list'))
 
     years = sorted({int(str(ym)[:4]) for ym in months_data}, reverse=True)
     available_months_by_year = {}
@@ -1567,7 +1567,7 @@ def export_pdf_batch(year_month):
     if not employee_ids:
         cur.close()
         flash(f"{year_month} 沒有任何薪資資料可供匯出", "danger")
-        return redirect(url_for('export_pdf_batch_select'))
+        return redirect(url_for('export_pdf_by_month'))
 
     configuration = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
 
@@ -1611,7 +1611,7 @@ def export_pdf_batch(year_month):
 
     if success_count == 0:
         flash(f"{year_month} 沒有任何員工成功匯出PDF", "danger")
-        return redirect(url_for('export_pdf_batch_select'))
+        return redirect(url_for('export_pdf_by_month'))
 
     zip_buffer.seek(0)
     zip_filename = f"{year_month}薪資單批次匯出.zip"
@@ -2046,12 +2046,12 @@ def import_history_select():
 def import_history_process():
     if 'file' not in request.files:
         flash('未選擇檔案', 'danger')
-        return redirect(request.url)
+        return redirect(url_for('import_history_select'))
     
     file = request.files['file']
     if file.filename == '':
         flash('檔案名稱為空', 'danger')
-        return redirect(request.url)
+        return redirect(url_for('import_history_select'))
 
     try:
         # 1. 讀取 Excel 並處理標題對應
