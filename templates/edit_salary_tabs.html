@@ -581,6 +581,7 @@
         
         if (s === 5) { selfPay = 0; selfDesc = "全額補助"; }
         else if (s === 2) { selfPay = Math.round(base / 2); selfDesc = "1/2補助"; }
+        else if (s === 4) { selfPay = Math.round(base * 0.75); selfDesc = "1/4補助"; }
 
         total += selfPay;
         steps.push(`本人 (${selfDesc}): ${selfPay} 元`);
@@ -621,7 +622,7 @@
     }
 
     function calculateTotalHours() {
-        const ids = ["daily_work_hr","holiday_work_hr","transition_hr","Overtime_pay_weekdays910hr","Overtime_pay_weekdays1112hr","Overtime_pay_rest_days12hr","Overtime_pay_rest_days38hr","holiday_overtime_hr","National_holidays_hr"];
+        const ids = ["daily_work_hr","holiday_work_hr","transition_hr","Overtime_pay_weekdays910hr","Overtime_pay_weekdays1112hr"];
         const total = ids.reduce((sum, id) => {
             const el = document.getElementById(id);
             return sum + (el ? parseFloat(el.value || 0) : 0);
@@ -827,7 +828,7 @@
         await loadHealthInsuranceLevels(currentYear);
         
         // 執行初始計算
-        calculateTotalHours();
+        calcHolidayHours();
         calculateSplit(); 
         calcPerformanceBonus();
         recalcLeave();
@@ -844,13 +845,16 @@
                     calculateSplit(); // 產能改變時，依據目前打勾的比例重算
                     syncSplitRadio(); // 同步一次圈圈
                 }
-                calculateTotalHours();
+                if (['Overtime_pay_rest_days12hr', 'Overtime_pay_rest_days38hr', 'holiday_overtime_hr', 'National_holidays_hr'].includes(input.id)) {
+                    calcHolidayHours();
+                } else {
+                    calculateTotalHours();
+                }
                 calcPerformanceBonus();
                 recalcLeave();
                 if (input.id === "daily_work_hr" || input.id === "holiday_work_hr") {calcAverageHours();}
                 if (input.id === "retirement_plan_withdraw") syncRetirementRadio();
                 if (input.id === "Split_amount") syncSplitRadio();
-                if (['Overtime_pay_rest_days12hr', 'Overtime_pay_rest_days38hr', 'holiday_overtime_hr', 'National_holidays_hr'].includes(input.id)) {calcHolidayHours();}
             });
         });
     });

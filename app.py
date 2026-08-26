@@ -882,9 +882,7 @@ def edit_salary_tabs(employee_id):
         values_dict['Performance_bonuses'] = perf_bonus
 
         # === 計算補助條件 ===
-        today = datetime.today().date()
-        onboard_date_only = info['employee_onboard'] if isinstance(info['employee_onboard'], date) else info['employee_onboard'].date()
-        one_year_passed = today >= onboard_date_only + relativedelta(years=1)
+        one_year_passed = is_past_one_year
 
         # 近三個月服務時數：僅做判斷，不入庫
         try:
@@ -1118,9 +1116,7 @@ def edit_salary_tabs(employee_id):
     )
 
     # 供前端預覽健檢補助判斷
-    today = datetime.today().date()
-    onboard_date_only = info['employee_onboard'] if isinstance(info['employee_onboard'], date) else info['employee_onboard'].date()
-    one_year_passed = today >= onboard_date_only + relativedelta(years=1)
+    one_year_passed = is_past_one_year
 
     # 取得員工補助資訊
     qualification = info.get('qualification', 0) if info else 0
@@ -2229,6 +2225,8 @@ def get_full_health_details(cursor, grade_val, qualification, subsidy, subsidy_n
             self_pay = 0
         elif s == 2:
             self_pay = int((base / 2) + 0.5) # 使用 +0.5 完美模擬 JS 的 Math.round()
+        elif s == 4:
+            self_pay = int((base * 0.75) + 0.5)
         else:
             self_pay = int(base)
             
