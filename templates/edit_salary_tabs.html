@@ -66,7 +66,11 @@
           <span class="fw-bold">員工姓名：</span><span class="text-primary">{{ employee_name }}</span>
           <span class="ms-4 fw-bold">薪資月份：</span><span class="badge bg-dark fs-5">{{ selected_month }}</span>
       </div>
-      <a href="{{ url_for('employee_list') }}" class="btn btn-secondary btn-lg">← 返回列表</a>
+      {% if action == 'add' %}
+      <a href="{{ url_for('add_select_month', employee_id=employee_id) }}" class="btn btn-secondary btn-lg">← 返回列表</a>
+      {% else %}
+      <a href="{{ url_for('edit_select_month', employee_id=employee_id) }}" class="btn btn-secondary btn-lg">← 返回列表</a>
+      {% endif %}
   </div>
 
   <form method="POST" onsubmit="return validateForm()">
