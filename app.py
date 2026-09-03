@@ -900,6 +900,28 @@ def edit_salary_tabs(employee_id):
         except ValueError:
             group_raw = 0
 
+        # 編輯時以當月已儲存資料為基準；新增月份時，則以上月帶入資料為基準。
+        # 基準金額已經套用過補助，若使用者沒有改動，就不能再次折抵。
+        cur.execute(
+            """SELECT `home_caregiver_insurance`, `group_accident_insurance`
+               FROM `employee_salary`
+               WHERE `employee_id` = %s AND `year_month` = %s""",
+            (employee_id, year_month)
+        )
+        insurance_baseline = cur.fetchone()
+
+        if insurance_baseline is None and action == 'add':
+            previous_month = int(
+                (selected_dt - relativedelta(months=1)).strftime('%Y%m')
+            )
+            cur.execute(
+                """SELECT `home_caregiver_insurance`, `group_accident_insurance`
+                   FROM `employee_salary`
+                   WHERE `employee_id` = %s AND `year_month` = %s""",
+                (employee_id, previous_month)
+            )
+            insurance_baseline = cur.fetchone()
+
         # ====== 保險補助（依規則折抵）======
         subsidy_rate = 0
         if one_year_passed and service_hours >= 131:
@@ -909,8 +931,20 @@ def edit_salary_tabs(employee_id):
         else:
             subsidy_rate = 0
 
-        caregiver_final = caregiver_raw - round(caregiver_raw * subsidy_rate)
-        group_final = group_raw - round(group_raw * subsidy_rate)
+        def calculate_insurance_final(field, raw_value):
+            if (
+                insurance_baseline is not None
+                and raw_value == safe_int(insurance_baseline.get(field))
+            ):
+                return raw_value
+            return raw_value - round(raw_value * subsidy_rate)
+
+        caregiver_final = calculate_insurance_final(
+            'home_caregiver_insurance', caregiver_raw
+        )
+        group_final = calculate_insurance_final(
+            'group_accident_insurance', group_raw
+        )
 
         values_dict['home_caregiver_insurance'] = caregiver_final
         values_dict['group_accident_insurance'] = group_final
