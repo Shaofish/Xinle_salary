@@ -271,6 +271,25 @@
           {% endfor %}
       </div>
 
+      <div class="bg-light p-4 rounded border mt-4">
+          <label class="form-label">近三個月平均服務時數 (健檢/補助判斷)：</label>
+          <input type="number" step="any" id="last_three_month_hours" name="last_three_month_hours"
+                 class="form-control w-50 readonly-field" readonly placeholder="系統即時計算中...">
+      </div>
+
+      <div class="row bg-warning-subtle p-3 rounded mb-4 border shadow-sm">
+          <div class="col-md-6">
+              <div class="form-check form-switch mt-2">
+                  <input type="checkbox" class="form-check-input" id="enable_checkup" name="enable_checkup" value="1" style="width: 60px; height: 30px;" {% if salary.check_up|int > 0 %}checked{% endif %}>
+                  <label for="enable_checkup" class="form-check-label ms-3 fw-bold">啟用本月健檢補助</label>
+              </div>
+          </div>
+          <div class="col-md-6">
+              <label class="form-label">健檢補助金額：</label>
+              <input name="check_up" id="check_up" value="{{ salary.check_up }}" class="form-control readonly-field" readonly>
+          </div>
+      </div>
+
       <div class="card mt-4 p-4 border-primary">
           <div class="row">
             <div class="col-md-6">
@@ -325,25 +344,6 @@
               <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input">
           </div>
           {% endfor %}
-      </div>
-
-      <div class="bg-light p-4 rounded border mt-4">
-          <label class="form-label">近三個月平均服務時數 (健檢/補助判斷)：</label>
-          <input type="number" step="any" id="last_three_month_hours" name="last_three_month_hours" 
-                 class="form-control w-50 readonly-field" readonly placeholder="系統即時計算中...">
-      </div>
-
-      <div class="row bg-warning-subtle p-3 rounded mb-4 border shadow-sm">
-          <div class="col-md-6">
-              <div class="form-check form-switch mt-2">
-                  <input type="checkbox" class="form-check-input" id="enable_checkup" name="enable_checkup" value="1" style="width: 60px; height: 30px;" {% if salary.check_up|int > 0 %}checked{% endif %}>
-                  <label for="enable_checkup" class="form-check-label ms-3 fw-bold">啟用本月健檢補助</label>
-              </div>
-          </div>
-          <div class="col-md-6">
-              <label class="form-label">健檢補助金額：</label>
-              <input name="check_up" id="check_up" value="{{ salary.check_up }}" class="form-control readonly-field" readonly>
-          </div>
       </div>
 
       <div class="row mt-4">
