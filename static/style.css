@@ -138,3 +138,51 @@ input:focus {
     outline: none;
     background-color: #fff;
 }
+
+/* Employee certificate: compact, horizontal yes/no choices. */
+.certificate-field {
+    min-width: 0;
+    margin: 0 0 24px;
+    padding: 0;
+    border: 0;
+}
+
+.certificate-field legend {
+    padding: 0;
+    margin-bottom: 10px;
+}
+
+.certificate-options {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: nowrap;
+}
+
+.certificate-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    white-space: nowrap;
+}
+
+.certificate-option input[type="radio"] {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+    accent-color: #2b6cb0;
+}
+
+.certificate-option input[type="radio"]:focus-visible {
+    outline: 2px solid #2b6cb0;
+    outline-offset: 3px;
+}
+
+.certificate-option label {
+    margin: 0;
+    cursor: pointer;
+}

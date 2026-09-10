@@ -265,8 +265,8 @@
       <div class="row">
           {% for f,label in [('licence_allowance','單一證照津貼'),('holiday_bonus','三節節慶獎金'),('birthday_bonus','生日祝賀禮金'),('referral_fee','員工介紹費'),('travel_allowance','員工旅遊津貼'),('training_fee','教育訓練補助'),('teaching_subsidy','教學指導補助'),('new_case_allowance','新案補助費')] %}
           <div class="col-md-4 field-group">
-              <label class="form-label">{{label}}：</label>
-              <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input {% if f == 'birthday_bonus' %}readonly-field{% endif %}" {% if f == 'birthday_bonus' %}readonly{% endif %}>
+              <label class="form-label">{{label}}：{% if f == 'licence_allowance' %}{% endif %}</label>
+              <input name="{{f}}" id="{{f}}" value="{{salary[f]}}" class="form-control numeric-input {% if f in ['birthday_bonus', 'licence_allowance'] %}readonly-field{% endif %}" {% if f in ['birthday_bonus', 'licence_allowance'] %}readonly{% endif %}>
           </div>
           {% endfor %}
       </div>
@@ -625,6 +625,15 @@
         };
     }
 
+    function calculateLicenceAllowance() {
+        const allowance = document.getElementById('licence_allowance');
+        if (!allowance) return;
+        const hasCertificate = {{ (info.get('has_single_level_certificate', 0)|int == 1)|tojson }};
+        const daily = parseFloat(document.getElementById('daily_work_hr')?.value) || 0;
+        const holiday = parseFloat(document.getElementById('holiday_work_hr')?.value) || 0;
+        allowance.value = hasCertificate && daily + holiday >= 130 ? 1000 : 0;
+    }
+
     function calculateTotalHours() {
         const ids = ["daily_work_hr","holiday_work_hr","transition_hr","Overtime_pay_weekdays910hr","Overtime_pay_weekdays1112hr"];
         const total = ids.reduce((sum, id) => {
@@ -633,6 +642,7 @@
         }, 0);
         const target = document.getElementById("total_hours");
         if (target) target.value = total.toFixed(2);
+        calculateLicenceAllowance();
     }
 
     function calculateSplit() {
@@ -890,6 +900,7 @@
     });
 
     function validateForm() {
+        calculateLicenceAllowance();
         const aa09Input = document.getElementById("AA09_bonus");
         if (aa09Input && parseFloat(aa09Input.value) < 0) {
             aa09Input.value = 0;

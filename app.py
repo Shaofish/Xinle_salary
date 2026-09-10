@@ -186,6 +186,13 @@ def safe_float(value):
     except (ValueError, TypeError):
         return 0.0
 
+def calculate_licence_allowance(employee_info, salary):
+    # 單一級證照津貼：當月服務時數（平日＋假日）達 130 小時，含 130。
+    service_hours = safe_float(salary.get('daily_work_hr')) + safe_float(salary.get('holiday_work_hr'))
+    has_certificate = safe_int(employee_info.get('has_single_level_certificate')) == 1
+    return 1000 if has_certificate and service_hours >= 130 else 0
+
+
 #比對兩個值是否實質相同，忽略 int/float 差異
 def values_equal(a, b):
     try:
@@ -218,6 +225,7 @@ column_mapping = {
     'employee_name': '姓名',
     'employee_onboard': '到職日',
     'position': '職位名稱',
+    'has_single_level_certificate': '有無單一級證照',
     'labor_insurance_grade' : '勞保級距(個人)',
     'health_insurance_grade': '健保級距(個人)',
     'subsidy_full': '全額補助人數',
@@ -379,6 +387,7 @@ def add_employee():
         employee_name = request.form['employee_name']
         employee_onboard = request.form['employee_onboard']
         position = request.form.get('position', '')
+        has_single_level_certificate = int(request.form.get('has_single_level_certificate', '0') == '1')
 
         labor_input = request.form.get('labor_insurance_grade')
         if labor_input and labor_input.strip().isdigit():
@@ -414,12 +423,12 @@ def add_employee():
             cursor.execute("""
                 INSERT INTO `employee_info` 
                 (`employee_id`, `employee_birth`, `employee_card`, `employee_name`, 
-                 `employee_onboard`, `position`, `qualification`, `subsidy`, 
+                 `employee_onboard`, `position`, `has_single_level_certificate`, `qualification`, `subsidy`,
                  `subsidy_none`, `subsidy_half`, `subsidy_full`, `insurance_grade_year`,
                  `leave_payment_month_of_year`, `labor_insurance_grade`, `health_insurance_grade`)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ,%s ,%s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (employee_id, employee_birth, employee_card, employee_name,
-                  employee_onboard, position, qualification, subsidy,
+                  employee_onboard, position, has_single_level_certificate, qualification, subsidy,
                   subsidy_none, subsidy_half, subsidy_full, insurance_grade_year,
                   leave_payment_month_of_year, labor_grade, health_grade))
             mysql.connection.commit()
@@ -461,6 +470,7 @@ def edit_profile(employee_id):
         employee_card = request.form.get('employee_card')
         employee_onboard = request.form.get('employee_onboard')
         position = request.form.get('position', '')
+        has_single_level_certificate = int(request.form.get('has_single_level_certificate', '0') == '1')
        
         labor_input = request.form.get('labor_insurance_grade')
         if labor_input and labor_input.strip().isdigit():
@@ -523,13 +533,13 @@ def edit_profile(employee_id):
             cursor.execute("""
                 UPDATE `employee_info`
                 SET `employee_id` = %s, `employee_name` = %s, `employee_birth` = %s, `employee_card` = %s, 
-                    `employee_onboard` = %s, `position` = %s, `insurance_grade_year` = %s, `qualification` = %s, `subsidy` = %s, 
+                    `employee_onboard` = %s, `position` = %s, `has_single_level_certificate` = %s, `insurance_grade_year` = %s, `qualification` = %s, `subsidy` = %s,
                     `subsidy_none` = %s, `subsidy_half` = %s, `subsidy_full` = %s, 
                     `leave_payment_month_of_year` = %s,
                     `labor_insurance_grade` = %s, `health_insurance_grade` = %s
                 WHERE `employee_id` = %s
             """, (new_employee_id, employee_name, employee_birth, employee_card, 
-                  employee_onboard, position, insurance_grade_year, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full, 
+                  employee_onboard, position, has_single_level_certificate, insurance_grade_year, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full,
                   leave_payment_month_of_year, labor_grade, health_grade, employee_id))
           
             if new_employee_id != employee_id:
@@ -553,6 +563,7 @@ def edit_profile(employee_id):
                 'employee_card': employee_card,
                 'employee_onboard': employee_onboard,
                 'position': position,
+                'has_single_level_certificate': has_single_level_certificate,
                 'qualification': qualification,
                 'subsidy': subsidy,
                 'subsidy_none': subsidy_none,
@@ -816,7 +827,7 @@ def edit_salary_tabs(employee_id):
     cursor.execute(
         """SELECT employee_birth, employee_onboard, qualification, subsidy, 
                   subsidy_none, subsidy_half, subsidy_full, leave_payment_month_of_year,
-                  labor_insurance_grade, health_insurance_grade, position
+                  labor_insurance_grade, health_insurance_grade, position, has_single_level_certificate
            FROM employee_info 
            WHERE employee_id = %s""",
         (employee_id,)
@@ -961,6 +972,9 @@ def edit_salary_tabs(employee_id):
         else:
             check_up_amount = 0
         values_dict['check_up'] = check_up_amount
+
+        # 證照資格以員工資料為準，儲存時重新計算，避免沿用舊金額。
+        values_dict['licence_allowance'] = calculate_licence_allowance(info, values_dict)
 
         # === 組裝資料 ===
         values = [values_dict.get(field, '0') if values_dict.get(field) is not None else None for field in all_fields]
@@ -1143,6 +1157,8 @@ def edit_salary_tabs(employee_id):
                 # 如果特休折抵金額為0，顯示提醒
                 if leave_deduction == 0:
                     show_leave_reminder = True
+
+    salary['licence_allowance'] = calculate_licence_allowance(info, salary)
 
     # === 生日禮金處理 ===
     salary['birthday_bonus'] = salary.get('birthday_bonus', 0) or calculate_birthday_bonus(
@@ -2063,6 +2079,8 @@ def edit_log_profile(employee_id):
         translated_fields = {}
         for key, value in original_fields.items():
             chinese_key = column_mapping.get(key, key)
+            if key == 'has_single_level_certificate':
+                value = {side: ('有' if str(item) == '1' else '無') for side, item in value.items()}
             translated_fields[chinese_key] = value
 
         log['changed_fields'] = translated_fields

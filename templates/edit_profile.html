@@ -126,6 +126,21 @@
                     </select>
             </div>
         </div>
+        <div class="row">
+            <fieldset class="certificate-field">
+                <legend class="form-label">有無單一級證照</legend>
+                <div class="certificate-options">
+                    <div class="certificate-option">
+                        <input type="radio" class="form-check-input" name="has_single_level_certificate" id="single_level_certificate_yes" value="1" {% if employee.get('has_single_level_certificate', 0)|int == 1 %}checked{% endif %} required>
+                        <label class="form-check-label" for="single_level_certificate_yes">有</label>
+                    </div>
+                    <div class="certificate-option">
+                        <input type="radio" class="form-check-input" name="has_single_level_certificate" id="single_level_certificate_no" value="0" {% if employee.get('has_single_level_certificate', 0)|int != 1 %}checked{% endif %} required>
+                        <label class="form-check-label" for="single_level_certificate_no">無</label>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
         <hr>
 
         <h4><i class="fa-solid fa-shield-halved"></i> 固定保險級距設定</h4>
