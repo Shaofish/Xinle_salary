@@ -219,13 +219,13 @@
       {% if show_leave_reminder %}
       <div class="leave-reminder-box">
           <h4 class="text-danger fw-bold"><i class="fa-solid fa-bell"></i> 本月特休發放提醒！</h4>
-          <p class="mb-0 fs-5">本月為預設發放月份。計算基準月：{{ one_year_month }}，可核發特休：{{ paid_leave_days }} 天。</p>
+          <p class="mb-0 fs-5">本月為預設發放月份。計算基準月：{{ one_year_month }}，可核發特休：<span class="leave-days-display">{{ salary.leave_days }}</span> 天。</p>
       </div>
       {% endif %}
 
       <div class="alert alert-primary mb-4" style="font-size: 20px;">
           <strong><i class="fa-solid fa-circle-info"></i> 到職概況：</strong> 
-          滿一年日期為 {{ one_year_month }}，目前系統登記特休總天數為 {{ paid_leave_days }} 天。
+          滿一年日期為 {{ one_year_month }}，目前表單特休總天數為 <span class="leave-days-display">{{ salary.leave_days }}</span> 天。
       </div>
 
       <div class="row">
@@ -728,6 +728,9 @@
 
     function recalcLeave() {
         const days = parseFloat(document.getElementById("leave_days")?.value || 0);
+        document.querySelectorAll('.leave-days-display').forEach(el => {
+            el.textContent = days;
+        });
         const takenInput = document.getElementById("leave_taken_days");
         let taken = parseFloat(takenInput?.value || 0);
         if (taken > days) {

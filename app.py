@@ -1117,9 +1117,9 @@ def edit_salary_tabs(employee_id):
         holiday = float(rec.get('holiday_work_hr') or 0)
         past_two_months_hours += (daily + holiday)
     
-    # === 特休天數計算（以選定薪資月份的月底計算年資）===
+    # === 特休天數計算（不含當月，以選定薪資月份的上個月底計算年資）===
     one_year_dt = datetime.strptime(str(one_year_month), "%Y%m")
-    leave_calculation_dt = selected_dt + relativedelta(day=31)
+    leave_calculation_dt = selected_dt + relativedelta(day=1, days=-1)
     leave_days_calculated = calculate_leave_days(onboard_date, leave_calculation_dt)
     
     # 滿半年起，空白或 0 自動帶入應給天數；保留已手動填寫的非零天數。
