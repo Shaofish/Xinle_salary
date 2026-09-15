@@ -1117,20 +1117,14 @@ def edit_salary_tabs(employee_id):
         holiday = float(rec.get('holiday_work_hr') or 0)
         past_two_months_hours += (daily + holiday)
     
-    # === 特休天數計算（基於到職滿一年當月）===
+    # === 特休天數計算（以選定薪資月份的月底計算年資）===
     one_year_dt = datetime.strptime(str(one_year_month), "%Y%m")
-    leave_days_calculated = calculate_leave_days(onboard_date, selected_dt)
+    leave_calculation_dt = selected_dt + relativedelta(day=31)
+    leave_days_calculated = calculate_leave_days(onboard_date, leave_calculation_dt)
     
-    # 設定特休天數
-    if is_past_one_year:
-        # 如果目前資料庫沒有特休天數，或是為 0，就自動填入最新的計算結果
-        if salary.get('leave_days') in [None, 0, '0']:
-            salary['leave_days'] = leave_days_calculated
-    else:
-        # 未滿一年不給特休
-        salary['leave_days'] = 0
-    
-    can_edit_paid_holiday = is_past_one_year
+    # 滿半年起，空白或 0 自動帶入應給天數；保留已手動填寫的非零天數。
+    if leave_days_calculated > 0 and salary.get('leave_days') in [None, '', 0, '0']:
+        salary['leave_days'] = leave_days_calculated
 
     # ✨✨ 判斷是否需要顯示特休發放提醒 ✨✨
     show_leave_reminder = False
@@ -1207,7 +1201,6 @@ def edit_salary_tabs(employee_id):
                             selected_month=selected_month,
                             data=salary,
                             action=action,
-                            can_edit_paid_holiday=can_edit_paid_holiday,
                             paid_leave_days=leave_days_calculated,
                             one_year_passed=one_year_passed,
                             is_past_one_year=is_past_one_year,
