@@ -6,3 +6,4 @@ pandas
 PyMySQL
 python-dateutil
 numpy
+XlsxWriter

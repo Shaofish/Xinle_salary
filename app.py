@@ -3,10 +3,12 @@ from flask_mysqldb import MySQL
 from MySQLdb.cursors import DictCursor
 from MySQLdb import IntegrityError
 from datetime import datetime, timedelta, date
-import pdfkit  # 加在檔案開頭
+import pdfkit
 import pandas as pd
 import io ,pymysql ,json
-from io import BytesIO 
+from io import BytesIO
+import xlsxwriter
+import zipfile
 from functools import wraps
 from dateutil.relativedelta import relativedelta
 from urllib.parse import quote
@@ -224,6 +226,7 @@ column_mapping = {
     'employee_card': '身份證字號',
     'employee_name': '姓名',
     'employee_onboard': '到職日',
+    'bank_account': '受款人帳號',
     'position': '職位名稱',
     'has_single_level_certificate': '有無單一級證照',
     'labor_insurance_grade' : '勞保級距(個人)',
@@ -386,6 +389,7 @@ def add_employee():
         employee_card = request.form['employee_card']
         employee_name = request.form['employee_name']
         employee_onboard = request.form['employee_onboard']
+        bank_account = request.form.get('bank_account', '').strip() or None
         position = request.form.get('position', '')
         has_single_level_certificate = int(request.form.get('has_single_level_certificate', '0') == '1')
 
@@ -421,14 +425,14 @@ def add_employee():
 
         try:
             cursor.execute("""
-                INSERT INTO `employee_info` 
-                (`employee_id`, `employee_birth`, `employee_card`, `employee_name`, 
-                 `employee_onboard`, `position`, `has_single_level_certificate`, `qualification`, `subsidy`,
+                INSERT INTO `employee_info`
+                (`employee_id`, `employee_birth`, `employee_card`, `employee_name`,
+                 `employee_onboard`, `bank_account`, `position`, `has_single_level_certificate`, `qualification`, `subsidy`,
                  `subsidy_none`, `subsidy_half`, `subsidy_full`, `insurance_grade_year`,
                  `leave_payment_month_of_year`, `labor_insurance_grade`, `health_insurance_grade`)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (employee_id, employee_birth, employee_card, employee_name,
-                  employee_onboard, position, has_single_level_certificate, qualification, subsidy,
+                  employee_onboard, bank_account, position, has_single_level_certificate, qualification, subsidy,
                   subsidy_none, subsidy_half, subsidy_full, insurance_grade_year,
                   leave_payment_month_of_year, labor_grade, health_grade))
             mysql.connection.commit()
@@ -469,9 +473,10 @@ def edit_profile(employee_id):
         employee_birth = request.form.get('employee_birth')
         employee_card = request.form.get('employee_card')
         employee_onboard = request.form.get('employee_onboard')
+        bank_account = request.form.get('bank_account', '').strip() or None
         position = request.form.get('position', '')
         has_single_level_certificate = int(request.form.get('has_single_level_certificate', '0') == '1')
-       
+
         labor_input = request.form.get('labor_insurance_grade')
         if labor_input and labor_input.strip().isdigit():
             labor_grade = int(labor_input.strip())
@@ -532,14 +537,14 @@ def edit_profile(employee_id):
             # Update 主表
             cursor.execute("""
                 UPDATE `employee_info`
-                SET `employee_id` = %s, `employee_name` = %s, `employee_birth` = %s, `employee_card` = %s, 
-                    `employee_onboard` = %s, `position` = %s, `has_single_level_certificate` = %s, `insurance_grade_year` = %s, `qualification` = %s, `subsidy` = %s,
-                    `subsidy_none` = %s, `subsidy_half` = %s, `subsidy_full` = %s, 
+                SET `employee_id` = %s, `employee_name` = %s, `employee_birth` = %s, `employee_card` = %s,
+                    `employee_onboard` = %s, `bank_account` = %s, `position` = %s, `has_single_level_certificate` = %s, `insurance_grade_year` = %s, `qualification` = %s, `subsidy` = %s,
+                    `subsidy_none` = %s, `subsidy_half` = %s, `subsidy_full` = %s,
                     `leave_payment_month_of_year` = %s,
                     `labor_insurance_grade` = %s, `health_insurance_grade` = %s
                 WHERE `employee_id` = %s
-            """, (new_employee_id, employee_name, employee_birth, employee_card, 
-                  employee_onboard, position, has_single_level_certificate, insurance_grade_year, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full,
+            """, (new_employee_id, employee_name, employee_birth, employee_card,
+                  employee_onboard, bank_account, position, has_single_level_certificate, insurance_grade_year, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full,
                   leave_payment_month_of_year, labor_grade, health_grade, employee_id))
           
             if new_employee_id != employee_id:
@@ -562,6 +567,7 @@ def edit_profile(employee_id):
                 'employee_birth': employee_birth, 
                 'employee_card': employee_card,
                 'employee_onboard': employee_onboard,
+                'bank_account': bank_account,
                 'position': position,
                 'has_single_level_certificate': has_single_level_certificate,
                 'qualification': qualification,
@@ -1748,6 +1754,142 @@ def export_excel_by_month(year_month):
                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     as_attachment=True,
                     download_name=filename)
+
+# ====== 匯出匯款清冊 - 選擇月份與轉帳日期頁面 ======
+@app.route('/export_remittance_select', methods=['GET', 'POST'])
+@login_required
+def export_remittance_select():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT DISTINCT `year_month` FROM `employee_salary` ORDER BY `year_month` DESC")
+    months_data = [row['year_month'] for row in cur.fetchall()]
+    cur.close()
+
+    if not months_data:
+        flash("目前沒有任何薪資資料可供匯出", "danger")
+        return redirect(url_for('employee_list'))
+
+    years = sorted({int(str(ym)[:4]) for ym in months_data}, reverse=True)
+    available_months_by_year = {}
+    for ym in months_data:
+        year = int(str(ym)[:4])
+        month = int(str(ym)[4:])
+        available_months_by_year.setdefault(year, []).append(month)
+
+    current_year = datetime.today().year
+    current_month = datetime.today().month
+
+    if request.method == 'POST':
+        selected_year = request.form.get('year')
+        selected_month = request.form.get('month')
+        tenth_date = (request.form.get('tenth_date') or '').replace('-', '')
+        thirtieth_date = (request.form.get('thirtieth_date') or '').replace('-', '')
+
+        if not (selected_year and selected_month and tenth_date and thirtieth_date):
+            flash('請完整選擇年月，並填寫 10 日與 30 日的轉帳日期', 'danger')
+        else:
+            year_month = f"{selected_year}{int(selected_month):02d}"
+            return redirect(url_for('export_remittance_batch',
+                                     year_month=year_month,
+                                     tenth_date=tenth_date,
+                                     thirtieth_date=thirtieth_date))
+
+    return render_template('export_remittance_select.html',
+                           title='選擇匯出月份 - 匯款清冊',
+                           years=years,
+                           available_months_by_year=available_months_by_year,
+                           default_year=current_year,
+                           default_month=current_month)
+
+# ====== 匯出匯款清冊 - 產生 10 日 / 30 日 匯款清冊並打包 ZIP ======
+@app.route('/export_remittance_batch/<year_month>')
+@login_required
+def export_remittance_batch(year_month):
+    tenth_date = request.args.get('tenth_date', '')
+    thirtieth_date = request.args.get('thirtieth_date', '')
+
+    if not tenth_date or not thirtieth_date:
+        flash('缺少轉帳日期參數，請重新選擇', 'danger')
+        return redirect(url_for('export_remittance_select'))
+
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        SELECT s.`tenth_salary`, s.`thirtieth_salary`,
+               i.`employee_name`, i.`employee_card`, i.`bank_account`
+        FROM `employee_salary` s
+        JOIN `employee_info` i ON s.`employee_id` = i.`employee_id`
+        WHERE s.`year_month` = %s
+        ORDER BY s.`employee_id`
+    """, (year_month,))
+    rows = cur.fetchall()
+    cur.close()
+
+    if not rows:
+        flash(f"{year_month} 沒有任何薪資資料可供匯出", "danger")
+        return redirect(url_for('export_remittance_select'))
+
+    def build_remittance_sheet(rows, amount_field, transfer_date):
+        """依照銀行匯款範本格式（所有欄位請勿自行新增或刪除）產生單一 xlsx，
+        金額為 0 或空值的員工不列入。回傳 (檔案bytes, 有效筆數)"""
+        output = BytesIO()
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+        worksheet = workbook.add_worksheet('工作表1')
+
+        warn_format = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'font_color': '#c53030'})
+        header_format = workbook.add_format({
+            'bold': True, 'align': 'center', 'valign': 'vcenter',
+            'border': 1, 'bg_color': '#EDF2F7', 'text_wrap': True
+        })
+        text_format = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '@'})
+        amount_format = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '#,##0'})
+
+        worksheet.merge_range(0, 0, 0, 4, '所有欄位請勿自行新增或刪除', warn_format)
+
+        headers = ['轉帳日期\n(yyyymmdd)', '受款人身分證字號', '受款人帳號', '金額', '員工姓名']
+        for col, h in enumerate(headers):
+            worksheet.write(1, col, h, header_format)
+        worksheet.set_row(1, 34)
+
+        row_idx = 2
+        for row in rows:
+            amount = safe_float(row.get(amount_field))
+            if not amount:
+                continue  # 排除金額為 0 或空值的員工
+            worksheet.write(row_idx, 0, transfer_date, text_format)
+            worksheet.write(row_idx, 1, row.get('employee_card') or '', text_format)
+            worksheet.write(row_idx, 2, row.get('bank_account') or '', text_format)
+            worksheet.write(row_idx, 3, amount, amount_format)
+            worksheet.write(row_idx, 4, row.get('employee_name') or '', text_format)
+            row_idx += 1
+
+        for col, width in enumerate([16, 18, 18, 12, 14]):
+            worksheet.set_column(col, col, width)
+
+        workbook.close()
+        output.seek(0)
+        return output.getvalue(), row_idx - 2
+
+    tenth_bytes, tenth_count = build_remittance_sheet(rows, 'tenth_salary', tenth_date)
+    thirtieth_bytes, thirtieth_count = build_remittance_sheet(rows, 'thirtieth_salary', thirtieth_date)
+
+    if tenth_count == 0 and thirtieth_count == 0:
+        flash(f"{year_month} 沒有任何員工有匯款金額可供匯出", "danger")
+        return redirect(url_for('export_remittance_select'))
+
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        if tenth_count > 0:
+            zf.writestr(f"{year_month}_10日匯款清冊.xlsx", tenth_bytes)
+        if thirtieth_count > 0:
+            zf.writestr(f"{year_month}_30日匯款清冊.xlsx", thirtieth_bytes)
+    zip_buffer.seek(0)
+
+    zip_filename = f"{year_month}_匯款清冊.zip"
+    encoded_filename = quote(zip_filename)
+
+    response = make_response(zip_buffer.read())
+    response.headers['Content-Type'] = 'application/zip'
+    response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_filename}"
+    return response
 
 # ====== 刪除功能 ======
 @app.route('/hide_employee/<employee_id>', methods=['POST'])

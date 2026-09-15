@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}選擇匯出月份 - 匯款清冊{% endblock %}
+
+{% block content %}
+<style>
+    /* 核心卡片容器 */
+    .select-card {
+        max-width: 700px;
+        margin: 60px auto;
+        background: #ffffff;
+        border-radius: 25px;
+        border: 3px solid #2d3748;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    /* 頂部裝飾區 */
+    .select-header {
+        background: #f7fafc;
+        padding: 40px;
+        text-align: center;
+        border-bottom: 3px solid #e2e8f0;
+    }
+    .select-header i {
+        font-size: 60px;
+        color: #2f855a;
+        margin-bottom: 15px;
+    }
+    .select-header h2 {
+        border: none;
+        padding: 0;
+        margin: 0;
+        font-size: 32px;
+        color: #1a365d;
+    }
+
+    /* 表單區塊 */
+    .select-body {
+        padding: 50px;
+    }
+
+    /* 標籤字體加大 */
+    .form-label {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 15px;
+        display: block;
+    }
+
+    /* 下拉選單強化：大字體與深邊框 */
+    .form-select-lg {
+        height: 80px;
+        font-size: 30px !important;
+        font-weight: bold;
+        border: 3px solid #4a5568 !important;
+        border-radius: 15px;
+        background-color: #f8fafc;
+        text-align: center;
+        margin-bottom: 35px;
+        transition: all 0.2s;
+    }
+    .form-select-lg:focus {
+        border-color: #2b6cb0 !important;
+        box-shadow: 0 0 0 8px rgba(43, 108, 176, 0.1) !important;
+        background-color: #fff;
+    }
+
+    /* 日期輸入框 */
+    .form-date-lg {
+        height: 70px;
+        font-size: 26px !important;
+        font-weight: bold;
+        border: 3px solid #4a5568 !important;
+        border-radius: 15px;
+        background-color: #f8fafc;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    .form-date-lg:focus {
+        border-color: #2b6cb0 !important;
+        box-shadow: 0 0 0 8px rgba(43, 108, 176, 0.1) !important;
+        background-color: #fff;
+    }
+    .date-hint {
+        font-size: 17px;
+        color: #718096;
+        display: block;
+        margin-bottom: 30px;
+    }
+
+    .section-divider {
+        border-top: 3px solid #cbd5e0;
+        margin: 40px 0 30px;
+    }
+
+    /* 大按鈕設計 */
+    .btn-action {
+        width: 100%;
+        padding: 20px !important;
+        font-size: 28px !important;
+        border-radius: 15px;
+        font-weight: bold;
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        background-color: #2f855a;
+        border-color: #2f855a;
+    }
+    .btn-action:hover {
+        background-color: #276749;
+        border-color: #276749;
+    }
+
+    .back-link-custom {
+        display: block;
+        text-align: center;
+        margin-top: 25px;
+        font-size: 20px;
+        color: #718096;
+        text-decoration: none;
+    }
+    .back-link-custom:hover { text-decoration: underline; }
+</style>
+
+<div class="select-card">
+    <div class="select-header">
+        <i class="fa-solid fa-building-columns"></i>
+        <h2>匯出匯款清冊</h2>
+        <p class="text-muted fs-5 mt-2">依「10日薪資」「30日薪資」各產生一份匯款清冊（ZIP 下載）</p>
+    </div>
+
+    <div class="select-body">
+        <form method="POST">
+            <div class="mb-4">
+                <label for="year" class="form-label">1. 請選擇薪資年份</label>
+                <select name="year" id="year" class="form-select form-select-lg" required>
+                    {% for y in years %}
+                        <option value="{{ y }}" {% if y == default_year %}selected{% endif %}>{{ y }} 年</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="month" class="form-label">2. 請選擇薪資月份</label>
+                <select name="month" id="month" class="form-select form-select-lg" required>
+                </select>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <div class="mb-2">
+                <label for="tenth_date" class="form-label">3. 10 日匯款清冊 - 轉帳日期</label>
+                <input type="date" name="tenth_date" id="tenth_date" class="form-control form-date-lg" required>
+                <small class="date-hint">系統已預填當月 10 號，如遇假日或實際匯款日不同，請自行修改</small>
+            </div>
+
+            <div class="mb-2">
+                <label for="thirtieth_date" class="form-label">4. 30 日匯款清冊 - 轉帳日期</label>
+                <input type="date" name="thirtieth_date" id="thirtieth_date" class="form-control form-date-lg" required>
+                <small class="date-hint">系統已預填當月最後一天，如遇假日或實際匯款日不同，請自行修改</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-action mt-4">
+                <i class="fa-solid fa-file-zipper me-2"></i>
+                確認並產生匯款清冊（ZIP）
+            </button>
+        </form>
+
+        <a href="{{ url_for('employee_list') }}" class="back-link-custom">
+            <i class="fa-solid fa-circle-chevron-left me-1"></i> 取消並返回薪資作業中心
+        </a>
+    </div>
+</div>
+
+<script>
+    const availableMonths = {{ available_months_by_year|tojson }};
+    const yearSelect = document.getElementById("year");
+    const monthSelect = document.getElementById("month");
+    const tenthDateInput = document.getElementById("tenth_date");
+    const thirtiethDateInput = document.getElementById("thirtieth_date");
+
+    function lastDayOfMonth(year, month) {
+        // month 為 1-12
+        return new Date(year, month, 0).getDate();
+    }
+
+    function pad2(n) {
+        return n.toString().padStart(2, "0");
+    }
+
+    function updateDefaultDates() {
+        const year = parseInt(yearSelect.value, 10);
+        const month = parseInt(monthSelect.value, 10);
+        if (!year || !month) return;
+
+        const lastDay = lastDayOfMonth(year, month);
+        tenthDateInput.value = `${year}-${pad2(month)}-10`;
+        thirtiethDateInput.value = `${year}-${pad2(month)}-${pad2(lastDay)}`;
+    }
+
+    function updateMonths() {
+        const selectedYear = yearSelect.value;
+        const defaultMonth = "{{ default_month }}";
+        monthSelect.innerHTML = "";
+
+        if (selectedYear && availableMonths[selectedYear]) {
+            const months = availableMonths[selectedYear];
+            months.forEach(m => {
+                const option = document.createElement("option");
+                option.value = m;
+                option.textContent = m.toString().padStart(2, "0") + " 月";
+                if (m.toString() === defaultMonth.toString()) {
+                    option.selected = true;
+                }
+                monthSelect.appendChild(option);
+            });
+        }
+        updateDefaultDates();
+    }
+
+    document.addEventListener('DOMContentLoaded', updateMonths);
+    yearSelect.addEventListener("change", updateMonths);
+    monthSelect.addEventListener("change", updateDefaultDates);
+</script>
+{% endblock %}

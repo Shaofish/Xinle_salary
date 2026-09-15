@@ -105,6 +105,10 @@
                 <label class="form-label">身份證字號</label>
                 <input type="text" name="employee_card" class="form-control" value="{{ employee.employee_card }}">
             </div>
+            <div class="col-md-6 mb-4">
+                <label class="form-label">受款人帳號（薪資匯款用）</label>
+                <input type="text" name="bank_account" class="form-control" value="{{ employee.bank_account or '' }}" placeholder="請輸入銀行帳號" inputmode="numeric" pattern="[0-9]*">
+            </div>
         </div>
         <div class="row">
             <div class="col-md-6 mb-4">
