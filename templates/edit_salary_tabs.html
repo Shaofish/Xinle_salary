@@ -506,7 +506,7 @@
         const national = parseFloat(document.getElementById('National_holidays_hr')?.value) || 0;
         
         // 加總
-        const totalHoliday = rest12 + rest38 + holiday + national;
+        const totalHoliday = Math.round((rest12 + rest38 + holiday + national) * 100) / 100;
         
         // 寫入假日總時數欄位
         const holidayInput = document.getElementById('holiday_work_hr');

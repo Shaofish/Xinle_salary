@@ -903,7 +903,7 @@ def edit_salary_tabs(employee_id):
 
         # 近三個月服務時數：僅做判斷，不入庫
         try:
-            service_hours = int(request.form.get('last_three_month_hours', 0))
+            service_hours = safe_float(request.form.get('last_three_month_hours', 0))
         except ValueError:
             service_hours = 0
 
