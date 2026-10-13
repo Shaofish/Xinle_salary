@@ -954,6 +954,8 @@ def edit_salary_tabs(employee_id):
                 and raw_value == safe_int(insurance_baseline.get(field))
             ):
                 return raw_value
+            if subsidy_rate == 0.5:
+                return (raw_value + 1) // 2
             return raw_value - round(raw_value * subsidy_rate)
 
         caregiver_final = calculate_insurance_final(
