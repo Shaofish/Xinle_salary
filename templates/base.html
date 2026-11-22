@@ -39,9 +39,20 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
+                    {% if category == 'salary-success' %}
+                    <div class="flash-message salary-success" role="status" aria-atomic="true">
+                        <i class="fa-solid fa-print" aria-hidden="true"></i>
+                        <div>
+                            <strong class="salary-success-title">{{ message['title'] }}</strong>
+                            <div class="salary-success-context">{{ message['employee_name'] }}｜{{ message['period'] }}</div>
+                            <p class="salary-success-detail">{{ message['detail'] }}</p>
+                        </div>
+                    </div>
+                    {% else %}
                     <div class="flash-message {{ category }} shadow-sm">
                         <i class="fa-solid fa-circle-info"></i> {{ message }}
                     </div>
+                    {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}

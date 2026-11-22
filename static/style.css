@@ -139,6 +139,45 @@ input:focus {
     background-color: #fff;
 }
 
+/* 薪資儲存完成提示：在列表上方清楚呈現列印提醒。 */
+.flash-message.salary-success {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 30px;
+    padding: 24px;
+    color: #14532d;
+    background-color: #dcfce7;
+    border: 3px solid #15803d;
+    border-left-width: 8px;
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(21, 128, 61, 0.12);
+    overflow-wrap: anywhere;
+}
+
+.salary-success > i {
+    flex-shrink: 0;
+    margin-top: 5px;
+    font-size: 28px;
+}
+
+.salary-success-title {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 26px;
+}
+
+.salary-success-context {
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.salary-success-detail {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.7;
+}
+
 /* Employee certificate: compact, horizontal yes/no choices. */
 .certificate-field {
     min-width: 0;

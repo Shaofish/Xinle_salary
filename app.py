@@ -20,7 +20,7 @@ app = Flask(__name__)
 # ====== MySQL 設定 ======
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'Aa0968695987'  # 請替換為你的 MySQL 密碼
+app.config['MYSQL_PASSWORD'] = 'Aa410770'  # 請替換為你的 MySQL 密碼
 app.config['MYSQL_DB'] = 'salary_db'  # 更改為要連接的資料庫名稱
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -683,9 +683,6 @@ def edit_resign_date(employee_id):
 @app.route('/employee_list')
 @login_required
 def employee_list():
-    if session.pop('salary_saved', None):
-        flash("薪資資料新增成功", "success")
-
     cursor = mysql.connection.cursor()
 
     # 在職員工
@@ -1037,8 +1034,25 @@ def edit_salary_tabs(employee_id):
                 log_edit(session['userid'], employee_id, 'add_salary', changed)
 
         mysql.connection.commit()
-        session['salary_saved'] = True
         cur.close()
+
+        if not existing:
+            title = '薪資資料已新增'
+            detail = '請確認本月份薪資內容後列印薪資單。'
+        elif changed:
+            title = '薪資資料已更新'
+            detail = '本月份薪資內容已有調整，若先前已列印薪資單，請重新列印，以確保薪資單與系統資料一致。'
+        else:
+            title = '薪資資料未變更'
+            detail = '本次儲存未調整薪資內容。'
+
+        salary_date = datetime.strptime(str(year_month), '%Y%m')
+        flash({
+            'title': title,
+            'employee_name': employee_name,
+            'period': f'{salary_date.year} 年 {salary_date.month} 月',
+            'detail': detail,
+        }, 'salary-success')
         return redirect(url_for('employee_list'))
 
     # === GET 頁面載入 ===
