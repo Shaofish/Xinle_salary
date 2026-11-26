@@ -18,6 +18,7 @@ from flask import Flask
 import app as application
 from workflow_helpers import insurance_csv, number, remittance_summary, transfer_date, year_month
 from workflow_imports import import_insurance, import_history
+from sql_checks import identifier_spans, quote_identifiers, sql_nodes, sql_template
 
 
 class Database:
@@ -51,23 +52,27 @@ class Cursor:
         self.params = None
 
     def execute(self, sql, params=None):
+        unquoted = [word for _, _, word in identifier_spans(sql)]
+        if unquoted:
+            raise AssertionError('SQL identifiers must be enclosed in backticks: ' + ', '.join(unquoted))
         self.sql, self.params = sql, params
         self.database.executed.append((sql, params))
         if self.database.fail_write and sql.lstrip().upper().startswith(('INSERT', 'UPDATE', 'DELETE')):
             raise RuntimeError('simulated database failure')
 
     def fetchone(self):
-        if 'SELECT employee_name FROM employee_info' in self.sql:
+        plain_sql = self.sql.replace('`', '')
+        if 'SELECT employee_name FROM employee_info' in plain_sql:
             return {'employee_name': '王小明 <測試>'}
-        if 'SELECT employee_birth, employee_onboard' in self.sql:
+        if 'SELECT employee_birth, employee_onboard' in plain_sql:
             return self.database.employee
-        if 'SELECT `home_caregiver_insurance`' in self.sql:
+        if 'SELECT home_caregiver_insurance' in plain_sql:
             return self.database.salary
-        if 'SELECT * FROM `employee_salary`' in self.sql:
+        if 'SELECT * FROM employee_salary' in plain_sql:
             return self.database.salary
-        if 'SELECT qualification' in self.sql:
+        if 'SELECT qualification' in plain_sql:
             return None if self.params[0] == 'MISSING' else {'qualification': 0, 'subsidy': 0}
-        if 'SELECT employee_id FROM employee_salary' in self.sql:
+        if 'SELECT employee_id FROM employee_salary' in plain_sql:
             return {'employee_id': self.params[0]} if self.params[0] == 'EXISTING' else None
         return self.database.employee
 
@@ -86,6 +91,10 @@ class Cursor:
 
     def close(self):
         pass
+
+    @property
+    def description(self):
+        return [(key,) for key in self.database.rows[0]] if self.database.rows else []
 
 
 class ValidationTests(unittest.TestCase):
@@ -127,6 +136,31 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual([b['count'] for b in result['batches']], [1, 1])
         rows[0]['bank_account'] = ''
         self.assertIn('銀行帳號', '\n'.join(remittance_summary(rows, '20261110', '20261130')['errors']))
+
+
+class SQLIdentifierTests(unittest.TestCase):
+    def test_all_production_sql_templates_quote_identifiers(self):
+        checked = 0
+        failures = []
+        for path in Path(application.__file__).parent.glob('*.py'):
+            tree = ast.parse(path.read_text(encoding='utf-8-sig'))
+            for node in sql_nodes(tree):
+                checked += 1
+                unquoted = [word for _, _, word in identifier_spans(sql_template(node))]
+                if unquoted:
+                    failures.append(f'{path.name}:{node.lineno}: {unquoted}')
+        self.assertGreater(checked, 0)
+        self.assertEqual(failures, [])
+
+    def test_literals_functions_and_parameters_are_preserved(self):
+        sql = "SELECT MAX(effective_year), NOW() FROM employee_info WHERE status = 'year_month and position' AND employee_id = %s"
+        expected = "SELECT MAX(`effective_year`), NOW() FROM `employee_info` WHERE `status` = 'year_month and position' AND `employee_id` = %s"
+        self.assertEqual(quote_identifiers(sql), expected)
+        self.assertEqual(list(identifier_spans(expected)), [])
+
+    def test_aliases_and_dynamic_slots_are_checked_without_touching_expressions(self):
+        sql = 'SELECT s.year_month, {columns} FROM employee_salary s WHERE s.employee_id = %s'
+        self.assertEqual(quote_identifiers(sql), 'SELECT `s`.`year_month`, {columns} FROM `employee_salary` `s` WHERE `s`.`employee_id` = %s')
 
 
 class ImportTests(unittest.TestCase):
@@ -261,6 +295,21 @@ class AppWorkflowTests(unittest.TestCase):
                 self.assertFalse(response.json['success'])
                 self.assertNotIn('redirect', response.json)
                 self.assertEqual(db.writes, [])
+
+    def test_salary_editor_loads_month_history_with_quoted_identifier(self):
+        db = Database(employee=self.info, salary={**self.saved, 'year_month': 202611})
+        with patch.object(application, 'mysql', SimpleNamespace(connection=db)):
+            response = self.client.get('/edit_salary_tabs/E1?year_month=202611')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any('SELECT `year_month`, `daily_work_hr`' in sql for sql, _ in db.executed))
+
+    def test_monthly_excel_export_uses_quoted_month_filter(self):
+        db = Database(rows=[{'employee_id': 'E1', 'year_month': 202611, 'employee_name': '測試員工'}])
+        with patch.object(application, 'mysql', SimpleNamespace(connection=db)):
+            response = self.client.get('/export_excel_by_month/202611')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('attachment', response.headers['Content-Disposition'])
+        self.assertTrue(any('WHERE `s`.`year_month` = %s' in sql for sql, _ in db.executed))
 
     def test_save_failure_does_not_queue_success(self):
         db = Database(employee=self.info, salary=self.saved, fail_write=True)

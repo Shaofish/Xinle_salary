@@ -32,7 +32,7 @@ def import_insurance(mysql, kind):
         table = {'labor': 'labor_insurance_level', 'health': 'health_insurance_level'}[kind]
         cursor = mysql.connection.cursor()
         for year in summary['years']:
-            cursor.execute(f'DELETE FROM `{table}` WHERE effective_year = %s', (year,))
+            cursor.execute(f'DELETE FROM `{table}` WHERE `effective_year` = %s', (year,))
         fields = columns + ['effective_year']
         names = ', '.join(f'`{field}`' for field in fields)
         placeholders = ', '.join(['%s'] * len(fields))
@@ -92,7 +92,7 @@ def history_plan(content, cursor, mapping, labor_lookup, health_lookup):
         if (employee_id, month) in seen:
             raise ValueError(f'{label}：檔案內員工 {employee_id} 的 {month} 薪資重複，請先保留一筆。')
         seen.add((employee_id, month))
-        cursor.execute('SELECT qualification, subsidy, subsidy_none, subsidy_half, subsidy_full FROM employee_info WHERE employee_id = %s', (employee_id,))
+        cursor.execute('SELECT `qualification`, `subsidy`, `subsidy_none`, `subsidy_half`, `subsidy_full` FROM `employee_info` WHERE `employee_id` = %s', (employee_id,))
         employee = cursor.fetchone()
         if not employee:
             skipped.append(f'{label}：員工 {employee_id} 不存在')
@@ -136,7 +136,7 @@ def history_plan(content, cursor, mapping, labor_lookup, health_lookup):
                     data['Insurance_amount'] = result.get('Insurance_amount', 0)
                 if 'company_health' in columns:
                     data['company_health'] = result.get('company_health', 0)
-        cursor.execute('SELECT employee_id FROM employee_salary WHERE employee_id = %s AND year_month = %s', (employee_id, month))
+        cursor.execute('SELECT `employee_id` FROM `employee_salary` WHERE `employee_id` = %s AND `year_month` = %s', (employee_id, month))
         if cursor.fetchone():
             update_count += 1
         else:
@@ -166,7 +166,7 @@ def import_history(mysql, mapping, labor_lookup, health_lookup):
             columns = ', '.join(f'`{field}`' for field in fields)
             placeholders = ', '.join(['%s'] * len(fields))
             updates = ', '.join(f'`{field}` = VALUES(`{field}`)' for field in fields)
-            cursor.execute(f'INSERT INTO employee_salary ({columns}) VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {updates}', tuple(data.values()))
+            cursor.execute(f'INSERT INTO `employee_salary` ({columns}) VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {updates}', tuple(data.values()))
         mysql.connection.commit()
         session.pop('preview_history', None)
         flash(f'歷史薪資匯入完成：新增 {summary["new"]} 筆、更新 {summary["updated"]} 筆、跳過 {summary["skipped"]} 筆。', 'success')

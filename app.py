@@ -175,7 +175,7 @@ def get_latest_salary(employee_id):
 def log_edit(userid, employee_id, action_type, changed_fields: dict, commit=True):
     cur = mysql.connection.cursor()
     cur.execute("""
-        INSERT INTO edit_log (userid, employee_id, action_type, changed_fields)
+        INSERT INTO `edit_log` (`userid`, `employee_id`, `action_type`, `changed_fields`)
         VALUES (%s, %s, %s, %s)
     """, (userid, employee_id, action_type, json.dumps(changed_fields, ensure_ascii=False)))
     if commit:
@@ -443,17 +443,17 @@ def employee_manage():
 
     # 在職員工
     cursor.execute("""
-        SELECT employee_id, employee_name , position
-        FROM employee_info 
-        WHERE is_hidden = FALSE AND (status = 'active' OR status IS NULL)
+        SELECT `employee_id`, `employee_name` , `position`
+        FROM `employee_info`
+        WHERE `is_hidden` = FALSE AND (`status` = 'active' OR `status` IS NULL)
     """)
     employees = cursor.fetchall()
 
     # 已離職員工
     cursor.execute("""
-        SELECT employee_id, employee_name, resign_date, position
-        FROM employee_info 
-        WHERE is_hidden = FALSE AND status = 'resigned'
+        SELECT `employee_id`, `employee_name`, `resign_date`, `position`
+        FROM `employee_info`
+        WHERE `is_hidden` = FALSE AND `status` = 'resigned'
     """)
     resigned_employees = cursor.fetchall()
 
@@ -530,15 +530,15 @@ def add_employee():
             return redirect(url_for('add_employee'))
     
     # GET: 獲取級距列表供前端選單使用
-    cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
+    cursor.execute("SELECT DISTINCT `effective_year` FROM `labor_insurance_level` WHERE `effective_year` != 0 ORDER BY `effective_year` DESC")
     labor_years = [row['effective_year'] for row in cursor.fetchall()]
     current_year = datetime.today().year
     selected_labor_year = current_year if current_year in labor_years else (labor_years[0] if labor_years else current_year)
 
-    cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_labor_year,))
+    cursor.execute("SELECT * FROM `labor_insurance_level` WHERE `effective_year` = %s ORDER BY `range` ASC", (selected_labor_year,))
     labor_levels = cursor.fetchall()
 
-    cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (selected_labor_year,))
+    cursor.execute("SELECT * FROM `health_insurance_level` WHERE `effective_year` = %s ORDER BY `Range` ASC", (selected_labor_year,))
     health_levels = cursor.fetchall()
     cursor.close()
     
@@ -604,13 +604,13 @@ def edit_profile(employee_id):
         try:
             # 2. 檢查新 ID 是否與其他現有員工重複 (排除自己)
             if new_employee_id != employee_id:
-                cursor.execute("SELECT employee_id FROM employee_info WHERE employee_id = %s", (new_employee_id,))
+                cursor.execute("SELECT `employee_id` FROM `employee_info` WHERE `employee_id` = %s", (new_employee_id,))
                 if cursor.fetchone():
                     flash(f'錯誤：員工編號 {new_employee_id} 已存在，請使用其他編號。', 'danger')
                     return redirect(url_for('edit_profile', employee_id=employee_id))
 
             # 3. 取得原始資料用於 Log (使用原本的 ID)
-            cursor.execute("SELECT * FROM employee_info WHERE employee_id = %s", (employee_id,))
+            cursor.execute("SELECT * FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
             original = cursor.fetchone()
             
             if not original:
@@ -720,17 +720,17 @@ def edit_profile(employee_id):
             return redirect(url_for('employee_manage'))
 
         # 2. 再用員工資料決定年份
-        cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
+        cursor.execute("SELECT DISTINCT `effective_year` FROM `labor_insurance_level` WHERE `effective_year` != 0 ORDER BY `effective_year` DESC")
         labor_years = [row['effective_year'] for row in cursor.fetchall()]
         current_year = datetime.today().year
         saved_year = employee.get('insurance_grade_year', 0)
         selected_labor_year = saved_year if saved_year in labor_years else (current_year if current_year in labor_years else (labor_years[0] if labor_years else None))
 
         # 3. 依年份載入級距
-        cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_labor_year,))
+        cursor.execute("SELECT * FROM `labor_insurance_level` WHERE `effective_year` = %s ORDER BY `range` ASC", (selected_labor_year,))
         labor_levels = cursor.fetchall()
 
-        cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (selected_labor_year,))
+        cursor.execute("SELECT * FROM `health_insurance_level` WHERE `effective_year` = %s ORDER BY `Range` ASC", (selected_labor_year,))
         health_levels = cursor.fetchall()
 
         return render_template('edit_profile.html', 
@@ -752,9 +752,9 @@ def edit_resign_date(employee_id):
         new_date = request.form.get('resign_date')
         if new_date:
             cursor.execute("""
-                UPDATE employee_info 
-                SET resign_date = %s 
-                WHERE employee_id = %s
+                UPDATE `employee_info`
+                SET `resign_date` = %s
+                WHERE `employee_id` = %s
             """, (new_date, employee_id))
             mysql.connection.commit()
             flash(f'離職日期已更新為 {new_date}', 'success')
@@ -763,9 +763,9 @@ def edit_resign_date(employee_id):
     
     # GET：顯示修改頁面
     cursor.execute("""
-        SELECT employee_name, resign_date 
-        FROM employee_info 
-        WHERE employee_id = %s
+        SELECT `employee_name`, `resign_date`
+        FROM `employee_info`
+        WHERE `employee_id` = %s
     """, (employee_id,))
     emp = cursor.fetchone()
     cursor.close()
@@ -784,17 +784,17 @@ def employee_list():
 
     # 在職員工
     cursor.execute("""
-        SELECT employee_id, employee_name , position
-        FROM employee_info 
-        WHERE is_hidden = FALSE AND (status = 'active' OR status IS NULL)
+        SELECT `employee_id`, `employee_name` , `position`
+        FROM `employee_info`
+        WHERE `is_hidden` = FALSE AND (`status` = 'active' OR `status` IS NULL)
     """)
     employees = cursor.fetchall()
 
     # 已離職員工
     cursor.execute("""
-        SELECT employee_id, employee_name, resign_date, position
-        FROM employee_info 
-        WHERE is_hidden = FALSE AND status = 'resigned'
+        SELECT `employee_id`, `employee_name`, `resign_date`, `position`
+        FROM `employee_info`
+        WHERE `is_hidden` = FALSE AND `status` = 'resigned'
     """)
     resigned_employees = cursor.fetchall()
 
@@ -810,14 +810,14 @@ def employee_list():
 def resign_employee(employee_id):
     cursor = mysql.connection.cursor()
     # 取得原始資料用於紀錄 (可選)
-    cursor.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    cursor.execute("SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
     emp = cursor.fetchone()
     
     # 執行更新
     cursor.execute("""
-        UPDATE employee_info 
-        SET status = 'resigned', resign_date = NOW()
-        WHERE employee_id = %s
+        UPDATE `employee_info`
+        SET `status` = 'resigned', `resign_date` = NOW()
+        WHERE `employee_id` = %s
     """, (employee_id,))
     
     # ✨ 關鍵：手動建立一筆「員工離職」專屬紀錄
@@ -839,9 +839,9 @@ def reinstate_employee(employee_id):
     
     # 執行更新
     cursor.execute("""
-        UPDATE employee_info
-        SET status = 'active', rehire_date = NOW(), resign_date = NULL
-        WHERE employee_id = %s
+        UPDATE `employee_info`
+        SET `status` = 'active', `rehire_date` = NOW(), `resign_date` = NULL
+        WHERE `employee_id` = %s
     """, (employee_id,))
     
     # ✨ 關鍵：手動建立一筆「員工復職」專屬紀錄
@@ -916,7 +916,7 @@ def edit_salary_tabs(employee_id):
     
     cursor = mysql.connection.cursor()
     cursor.execute(
-        "SELECT employee_name FROM employee_info WHERE employee_id = %s",
+        "SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s",
         (employee_id,)
     )
     name_result = cursor.fetchone()
@@ -926,11 +926,11 @@ def edit_salary_tabs(employee_id):
     # === 取得員工資訊（包含補助資訊）===
     cursor = mysql.connection.cursor()
     cursor.execute(
-        """SELECT employee_birth, employee_onboard, qualification, subsidy, 
-                  subsidy_none, subsidy_half, subsidy_full, leave_payment_month_of_year,
-                  labor_insurance_grade, health_insurance_grade, position, has_single_level_certificate
-           FROM employee_info 
-           WHERE employee_id = %s""",
+        """SELECT `employee_birth`, `employee_onboard`, `qualification`, `subsidy`,
+                  `subsidy_none`, `subsidy_half`, `subsidy_full`, `leave_payment_month_of_year`,
+                  `labor_insurance_grade`, `health_insurance_grade`, `position`, `has_single_level_certificate`
+           FROM `employee_info`
+           WHERE `employee_id` = %s""",
         (employee_id,)
     )
     info = cursor.fetchone()
@@ -1225,9 +1225,9 @@ def edit_salary_tabs(employee_id):
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute(
-        """SELECT year_month, daily_work_hr, holiday_work_hr
-           FROM employee_salary 
-           WHERE employee_id = %s AND `year_month` IN (%s, %s)""",
+        """SELECT `year_month`, `daily_work_hr`, `holiday_work_hr`
+           FROM `employee_salary`
+           WHERE `employee_id` = %s AND `year_month` IN (%s, %s)""",
         (employee_id, past_months[0], past_months[1])
     )
     past_records = cursor.fetchall()
@@ -1258,7 +1258,7 @@ def edit_salary_tabs(employee_id):
         # 從 employee_info 查詢每年固定發放月份
         cursor = mysql.connection.cursor()
         cursor.execute(
-            "SELECT leave_payment_month_of_year FROM employee_info WHERE employee_id = %s",
+            "SELECT `leave_payment_month_of_year` FROM `employee_info` WHERE `employee_id` = %s",
             (employee_id,)
         )
         info_record = cursor.fetchone()
@@ -1350,7 +1350,7 @@ def preview_salary(employee_id):
     cursor = mysql.connection.cursor()
     # 🔥 新增：查詢員工姓名
     cursor.execute(
-        "SELECT employee_name FROM employee_info WHERE employee_id = %s",
+        "SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s",
         (employee_id,)
     )
     name_result = cursor.fetchone()
@@ -1366,14 +1366,14 @@ def preview_salary(employee_id):
 @login_required
 def add_select_month(employee_id):
     cur = mysql.connection.cursor()
-    cur.execute("SELECT employee_name, employee_onboard FROM employee_info WHERE employee_id = %s", (employee_id,))
+    cur.execute("SELECT `employee_name`, `employee_onboard` FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
     employee = cur.fetchone()
     if not employee:
         cur.close()
         flash("找不到該員工資料", "danger")
         return redirect(url_for('employee_list'))
     # ✨ 新增：取得該員工已經在資料庫中的所有薪資月份
-    cur.execute("SELECT `year_month` FROM employee_salary WHERE employee_id = %s", (employee_id,))
+    cur.execute("SELECT `year_month` FROM `employee_salary` WHERE `employee_id` = %s", (employee_id,))
     existing_records = cur.fetchall()
     cur.close()
     # 將已存在的月份存入 Set 中，方便後續快速比對 (例如: {'202601', '202602'})
@@ -1449,7 +1449,7 @@ def add_select_month(employee_id):
 def edit_select_month(employee_id):
     cur = mysql.connection.cursor()
     cur.execute(
-        "SELECT employee_name FROM employee_info WHERE employee_id = %s",
+        "SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s",
         (employee_id,)
     )
     name_result = cur.fetchone()
@@ -1542,7 +1542,7 @@ def export_pdf(employee_id, year_month):
     cur = mysql.connection.cursor()
     
     # 查詢員工姓名
-    cur.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    cur.execute("SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
     employee_info = cur.fetchone()
     employee_name = employee_info['employee_name'] if employee_info else employee_id
     
@@ -1580,21 +1580,21 @@ def export_excel(employee_id):
     # ✅ 查詢該員工所有資料
     query = """
         SELECT 
-            s.`year_month`, s.`employee_id`, i.`employee_birth`, i.`employee_card`, i.`employee_name`, i.`employee_onboard`,
-            s.`capacity_amout`, s.`Split_amount`, s.`AA09_bonus_view`, s.`daily_work_hr`, s.`holiday_work_hr`, s.`total_hr`,
-            s.`daily_work_salary`,s.`administration_allowance`, s.`duty_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
-            s.`Overtime_pay_weekdays1112hr`, s.`total_overtime_pay_weekdays`,s.`Overtime_pay_rest_days12hr`, 
-            s.`Overtime_pay_rest_days38hr`, s.`total_overtime_pay_restdays`,s.`holiday_overtime_hr`, s.`total_pay_holidays`, 
-            s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
-            s.`AA09_bonus`, s.`Salary_subtotal`, s.`Inter_district_subsidie`,s.`leave_pay_days`, s.`leave_deduction_amount`, 
-            s.`ultimate_salary`, s.`BGA_view`,s.`licence_allowance`, s.`holiday_bonus`, s.`birthday_bonus`,s.`referral_fee`, 
-            s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
-            s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
-            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
-            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`, s.`remarks`
-        FROM employee_salary s
-        JOIN employee_info i ON s.employee_id = i.employee_id
-        WHERE s.employee_id = %s
+            `s`.`year_month`, `s`.`employee_id`, `i`.`employee_birth`, `i`.`employee_card`, `i`.`employee_name`, `i`.`employee_onboard`,
+            `s`.`capacity_amout`, `s`.`Split_amount`, `s`.`AA09_bonus_view`, `s`.`daily_work_hr`, `s`.`holiday_work_hr`, `s`.`total_hr`,
+            `s`.`daily_work_salary`,`s`.`administration_allowance`, `s`.`duty_allowance`, `s`.`transition_hr`, `s`.`transition_allowance`,`s`.`Overtime_pay_weekdays910hr`,
+            `s`.`Overtime_pay_weekdays1112hr`, `s`.`total_overtime_pay_weekdays`,`s`.`Overtime_pay_rest_days12hr`,
+            `s`.`Overtime_pay_rest_days38hr`, `s`.`total_overtime_pay_restdays`,`s`.`holiday_overtime_hr`, `s`.`total_pay_holidays`,
+            `s`.`National_holidays_hr`, `s`.`total_pay_national_holidays`,`s`.`main_total__overtime_pay`,`s`.`Performance_bonuses`,
+            `s`.`AA09_bonus`, `s`.`Salary_subtotal`, `s`.`Inter_district_subsidie`,`s`.`leave_pay_days`, `s`.`leave_deduction_amount`,
+            `s`.`ultimate_salary`, `s`.`BGA_view`,`s`.`licence_allowance`, `s`.`holiday_bonus`, `s`.`birthday_bonus`,`s`.`referral_fee`,
+            `s`.`travel_allowance`, `s`.`check_up`, `s`.`training_fee`, `s`.`teaching_subsidy`,`s`.`new_case_allowance`, `s`.`extras`, `s`.`extras_amout`,`s`.`extras2`,`s`.`extras2_amount`,
+            `s`.`total_welfare`,`s`.`total_payment_insure_grade`, `s`.`Labor_premiums`, `s`.`Insurance_amount`, `s`.`retirement_plan_withdraw`,
+            `s`.`home_caregiver_insurance`, `s`.`group_accident_insurance`, `s`.`subtotal_withholding`,`s`.`additional_withholding_items`,`s`.`additional_withholding_amout`,`s`.`additional_withholding2_items`,
+            `s`.`additional_withholding2_amount`,`s`.`payroll_due`,`s`.`paid_in_salary`, `s`.`tenth_salary`, `s`.`thirtieth_salary`, `s`.`remarks`
+        FROM `employee_salary` `s`
+        JOIN `employee_info` `i` ON `s`.`employee_id` = `i`.`employee_id`
+        WHERE `s`.`employee_id` = %s
     """
     cur.execute(query, (employee_id,))
     rows = cur.fetchall()
@@ -1748,10 +1748,10 @@ def export_pdf_batch(year_month):
         configuration = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as archive:
             for employee_id in employee_ids:
-                cur.execute('SELECT employee_name FROM employee_info WHERE employee_id = %s', (employee_id,))
+                cur.execute('SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s', (employee_id,))
                 employee = cur.fetchone()
                 name = employee['employee_name'] if employee else str(employee_id)
-                cur.execute('SELECT * FROM view_salary_export WHERE `員工編號` = %s AND `年/月` = %s', (employee_id, year_month))
+                cur.execute('SELECT * FROM `view_salary_export` WHERE `員工編號` = %s AND `年/月` = %s', (employee_id, year_month))
                 rows = cur.fetchall()
                 if not rows:
                     failed.append(f'{name}（{employee_id}）：找不到薪資明細')
@@ -1793,21 +1793,21 @@ def export_excel_by_month(year_month):
     # ✅ 查詢該月份所有員工資料
     query = """
         SELECT 
-            s.`year_month`, s.`employee_id`, i.`employee_birth`, i.`employee_card`, i.`employee_name`, i.`employee_onboard`,
-            s.`capacity_amout`, s.`Split_amount`, s.`AA09_bonus_view`, s.`daily_work_hr`, s.`holiday_work_hr`, s.`total_hr`,
-            s.`daily_work_salary`,s.`administration_allowance`, s.`duty_allowance`, s.`transition_hr`, s.`transition_allowance`,s.`Overtime_pay_weekdays910hr`, 
-            s.`Overtime_pay_weekdays1112hr`, s.`total_overtime_pay_weekdays`,s.`Overtime_pay_rest_days12hr`, 
-            s.`Overtime_pay_rest_days38hr`, s.`total_overtime_pay_restdays`,s.`holiday_overtime_hr`, s.`total_pay_holidays`, 
-            s.`National_holidays_hr`, s.`total_pay_national_holidays`,s.`main_total__overtime_pay`,s.`Performance_bonuses`, 
-            s.`AA09_bonus`, s.`Salary_subtotal`, s.`Inter_district_subsidie`,s.`leave_pay_days`, s.`leave_deduction_amount`, 
-            s.`ultimate_salary`, s.`BGA_view`,s.`licence_allowance`, s.`holiday_bonus`, s.`birthday_bonus`,s.`referral_fee`, 
-            s.`travel_allowance`, s.`check_up`, s.`training_fee`, s.`teaching_subsidy`,s.`new_case_allowance`, s.`extras`, s.`extras_amout`,s.`extras2`,s.`extras2_amount`,
-            s.`total_welfare`,s.`total_payment_insure_grade`, s.`Labor_premiums`, s.`Insurance_amount`, s.`retirement_plan_withdraw`,
-            s.`home_caregiver_insurance`, s.`group_accident_insurance`, s.`subtotal_withholding`,s.`additional_withholding_items`,s.`additional_withholding_amout`,s.`additional_withholding2_items`,
-            s.`additional_withholding2_amount`,s.`payroll_due`,s.`paid_in_salary`, s.`tenth_salary`, s.`thirtieth_salary`, s.`remarks`
-        FROM employee_salary s
-        JOIN employee_info i ON s.employee_id = i.employee_id
-        WHERE s.year_month = %s
+            `s`.`year_month`, `s`.`employee_id`, `i`.`employee_birth`, `i`.`employee_card`, `i`.`employee_name`, `i`.`employee_onboard`,
+            `s`.`capacity_amout`, `s`.`Split_amount`, `s`.`AA09_bonus_view`, `s`.`daily_work_hr`, `s`.`holiday_work_hr`, `s`.`total_hr`,
+            `s`.`daily_work_salary`,`s`.`administration_allowance`, `s`.`duty_allowance`, `s`.`transition_hr`, `s`.`transition_allowance`,`s`.`Overtime_pay_weekdays910hr`,
+            `s`.`Overtime_pay_weekdays1112hr`, `s`.`total_overtime_pay_weekdays`,`s`.`Overtime_pay_rest_days12hr`,
+            `s`.`Overtime_pay_rest_days38hr`, `s`.`total_overtime_pay_restdays`,`s`.`holiday_overtime_hr`, `s`.`total_pay_holidays`,
+            `s`.`National_holidays_hr`, `s`.`total_pay_national_holidays`,`s`.`main_total__overtime_pay`,`s`.`Performance_bonuses`,
+            `s`.`AA09_bonus`, `s`.`Salary_subtotal`, `s`.`Inter_district_subsidie`,`s`.`leave_pay_days`, `s`.`leave_deduction_amount`,
+            `s`.`ultimate_salary`, `s`.`BGA_view`,`s`.`licence_allowance`, `s`.`holiday_bonus`, `s`.`birthday_bonus`,`s`.`referral_fee`,
+            `s`.`travel_allowance`, `s`.`check_up`, `s`.`training_fee`, `s`.`teaching_subsidy`,`s`.`new_case_allowance`, `s`.`extras`, `s`.`extras_amout`,`s`.`extras2`,`s`.`extras2_amount`,
+            `s`.`total_welfare`,`s`.`total_payment_insure_grade`, `s`.`Labor_premiums`, `s`.`Insurance_amount`, `s`.`retirement_plan_withdraw`,
+            `s`.`home_caregiver_insurance`, `s`.`group_accident_insurance`, `s`.`subtotal_withholding`,`s`.`additional_withholding_items`,`s`.`additional_withholding_amout`,`s`.`additional_withholding2_items`,
+            `s`.`additional_withholding2_amount`,`s`.`payroll_due`,`s`.`paid_in_salary`, `s`.`tenth_salary`, `s`.`thirtieth_salary`, `s`.`remarks`
+        FROM `employee_salary` `s`
+        JOIN `employee_info` `i` ON `s`.`employee_id` = `i`.`employee_id`
+        WHERE `s`.`year_month` = %s
     """
     cur.execute(query, (year_month,))
     rows = cur.fetchall()
@@ -1919,12 +1919,12 @@ def export_remittance_batch(year_month):
 
     cur = mysql.connection.cursor()
     cur.execute("""
-        SELECT s.`employee_id`, s.`tenth_salary`, s.`thirtieth_salary`,
-               i.`employee_name`, i.`employee_card`, i.`bank_account`
-        FROM `employee_salary` s
-        JOIN `employee_info` i ON s.`employee_id` = i.`employee_id`
-        WHERE s.`year_month` = %s
-        ORDER BY s.`employee_id`
+        SELECT `s`.`employee_id`, `s`.`tenth_salary`, `s`.`thirtieth_salary`,
+               `i`.`employee_name`, `i`.`employee_card`, `i`.`bank_account`
+        FROM `employee_salary` `s`
+        JOIN `employee_info` `i` ON `s`.`employee_id` = `i`.`employee_id`
+        WHERE `s`.`year_month` = %s
+        ORDER BY `s`.`employee_id`
     """, (year_month,))
     rows = cur.fetchall()
     cur.close()
@@ -2012,7 +2012,7 @@ def export_remittance_batch(year_month):
 @login_required
 def hide_employee(employee_id):
     cur = mysql.connection.cursor()
-    cur.execute("UPDATE employee_info SET is_hidden = TRUE WHERE employee_id = %s", (employee_id,))
+    cur.execute("UPDATE `employee_info` SET `is_hidden` = TRUE WHERE `employee_id` = %s", (employee_id,))
     mysql.connection.commit()
     cur.close()
     flash("員工已隱藏，不再顯示於名單；既有員工與薪資資料仍保留。", "info")
@@ -2024,11 +2024,11 @@ def hide_employee(employee_id):
 def get_labor_insurance_levels(year):
     cursor = mysql.connection.cursor()
     # 優先抓取指定年份，如果該年沒資料，則抓取最新的年份
-    cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (year,))
+    cursor.execute("SELECT * FROM `labor_insurance_level` WHERE `effective_year` = %s ORDER BY `range` ASC", (year,))
     levels = cursor.fetchall()
     
     if not levels: # 防呆：如果找不到該年份，抓最近的一年
-        cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = (SELECT MAX(effective_year) FROM labor_insurance_level) ORDER BY `range` ASC")
+        cursor.execute("SELECT * FROM `labor_insurance_level` WHERE `effective_year` = (SELECT MAX(`effective_year`) FROM `labor_insurance_level`) ORDER BY `range` ASC")
         levels = cursor.fetchall()
         
     cursor.close()
@@ -2066,7 +2066,7 @@ def labor_insurance_level_manage():
     cursor = mysql.connection.cursor()
     
     # 1. 取得所有年份供標籤顯示
-    cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
+    cursor.execute("SELECT DISTINCT `effective_year` FROM `labor_insurance_level` WHERE `effective_year` != 0 ORDER BY `effective_year` DESC")
     available_years = [row['effective_year'] for row in cursor.fetchall()]
     
     # 2. 決定目前顯示年份
@@ -2080,7 +2080,7 @@ def labor_insurance_level_manage():
         cursor.close()
         return import_insurance(mysql, 'labor')
 
-    cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_year,))
+    cursor.execute("SELECT * FROM `labor_insurance_level` WHERE `effective_year` = %s ORDER BY `range` ASC", (selected_year,))
     levels = cursor.fetchall()
     cursor.close()
     return render_template('labor_insurance_level_manage.html', levels=levels, available_years=available_years, selected_year=selected_year)
@@ -2090,11 +2090,11 @@ def labor_insurance_level_manage():
 @login_required
 def get_health_insurance_levels(year):
     cursor = mysql.connection.cursor()
-    cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (year,))
+    cursor.execute("SELECT * FROM `health_insurance_level` WHERE `effective_year` = %s ORDER BY `Range` ASC", (year,))
     levels = cursor.fetchall()
     
     if not levels: # 防呆
-        cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = (SELECT MAX(effective_year) FROM health_insurance_level) ORDER BY `Range` ASC")
+        cursor.execute("SELECT * FROM `health_insurance_level` WHERE `effective_year` = (SELECT MAX(`effective_year`) FROM `health_insurance_level`) ORDER BY `Range` ASC")
         levels = cursor.fetchall()
         
     cursor.close()
@@ -2133,7 +2133,7 @@ def health_insurance_level_manage():
     cursor = mysql.connection.cursor()
     
     # 1. 取得所有年份 (供分頁標籤顯示)
-    cursor.execute("SELECT DISTINCT effective_year FROM health_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
+    cursor.execute("SELECT DISTINCT `effective_year` FROM `health_insurance_level` WHERE `effective_year` != 0 ORDER BY `effective_year` DESC")
     available_years = [row['effective_year'] for row in cursor.fetchall()]
     
     # 2. 決定目前查看的年份
@@ -2148,7 +2148,7 @@ def health_insurance_level_manage():
         return import_insurance(mysql, 'health')
 
     # GET 請求：撈取指定年份
-    cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (selected_year,))
+    cursor.execute("SELECT * FROM `health_insurance_level` WHERE `effective_year` = %s ORDER BY `Range` ASC", (selected_year,))
     levels = cursor.fetchall()
     cursor.close()
     
@@ -2164,17 +2164,17 @@ def edit_log_salary(employee_id):
     cursor = mysql.connection.cursor()
     
     # 抓取員工基本資料 (顯示在標題用)
-    cursor.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    cursor.execute("SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
     emp = cursor.fetchone()
     employee_name = emp['employee_name'] if emp else "未知員工"
 
     # 抓取 Log，但只篩選「薪資相關」的動作
     # 假設你的 action_type 是 'edit_salary', 'add_salary'
     cursor.execute("""
-        SELECT * FROM edit_log 
-        WHERE employee_id = %s 
-        AND action_type IN ('edit_salary', 'add_salary')
-        ORDER BY timestamp DESC
+        SELECT * FROM `edit_log`
+        WHERE `employee_id` = %s
+        AND `action_type` IN ('edit_salary', 'add_salary')
+        ORDER BY `timestamp` DESC
     """, (employee_id,))
     logs = cursor.fetchall()
     
@@ -2204,17 +2204,17 @@ def edit_log_salary(employee_id):
 def edit_log_profile(employee_id):
     cursor = mysql.connection.cursor()
     
-    cursor.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    cursor.execute("SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
     emp = cursor.fetchone()
     employee_name = emp['employee_name'] if emp else "未知員工"
 
     # 抓取 Log，篩選「非薪資」的動作 (個資修改、離職、復職)
     # 假設 action_type 包含 'edit_employee', 'resign', 'reinstate'
     cursor.execute("""
-        SELECT * FROM edit_log 
-        WHERE employee_id = %s 
-        AND action_type NOT IN ('edit_salary', 'add_salary')
-        ORDER BY timestamp DESC
+        SELECT * FROM `edit_log`
+        WHERE `employee_id` = %s
+        AND `action_type` NOT IN ('edit_salary', 'add_salary')
+        ORDER BY `timestamp` DESC
     """, (employee_id,))
     logs = cursor.fetchall()
     
@@ -2255,8 +2255,8 @@ def get_full_labor_details(cursor, grade_val, year):
         # 尋找該年份最接近且大於等於該金額的級距
         cursor.execute("""
             SELECT `employee_labor`, `company_labor`, `company_occu`, `company_retire`, `effective_year`
-            FROM labor_insurance_level 
-            WHERE `range` >= %s AND effective_year = %s 
+            FROM `labor_insurance_level`
+            WHERE `range` >= %s AND `effective_year` = %s
             ORDER BY `range` ASC LIMIT 1
         """, (grade_val, year))
         res = cursor.fetchone()
@@ -2265,8 +2265,8 @@ def get_full_labor_details(cursor, grade_val, year):
         if not res:
             cursor.execute("""
                 SELECT `employee_labor`, `company_labor`, `company_occu`, `company_retire`, `effective_year`
-                FROM labor_insurance_level 
-                WHERE `range` >= %s ORDER BY effective_year DESC, `range` ASC LIMIT 1
+                FROM `labor_insurance_level`
+                WHERE `range` >= %s ORDER BY `effective_year` DESC, `range` ASC LIMIT 1
             """, (grade_val,))
             res = cursor.fetchone()
         return res or {}
@@ -2279,8 +2279,8 @@ def get_full_health_details(cursor, grade_val, qualification, subsidy, subsidy_n
     try:
         cursor.execute("""
             SELECT `employee_and0`, `company_health`, `effective_year`
-            FROM health_insurance_level 
-            WHERE `Range` >= %s AND effective_year = %s 
+            FROM `health_insurance_level`
+            WHERE `Range` >= %s AND `effective_year` = %s
             ORDER BY `Range` ASC LIMIT 1
         """, (grade_val, year))
         res = cursor.fetchone()
@@ -2288,8 +2288,8 @@ def get_full_health_details(cursor, grade_val, qualification, subsidy, subsidy_n
         if not res:
             cursor.execute("""
                 SELECT `employee_and0`, `company_health`, `effective_year`
-                FROM health_insurance_level 
-                WHERE `Range` >= %s ORDER BY effective_year DESC, `Range` ASC LIMIT 1
+                FROM `health_insurance_level`
+                WHERE `Range` >= %s ORDER BY `effective_year` DESC, `Range` ASC LIMIT 1
             """, (grade_val,))
             res = cursor.fetchone()
             
@@ -2347,16 +2347,16 @@ def insurance_history(employee_id):
     cursor = mysql.connection.cursor()
     
     # 1. 抓取員工基本資訊
-    cursor.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
+    cursor.execute("SELECT `employee_name` FROM `employee_info` WHERE `employee_id` = %s", (employee_id,))
     emp = cursor.fetchone()
     employee_name = emp['employee_name'] if emp else "未知員工"
 
     # 2. 抓取所有個人資料修改紀錄 (篩選 edit_employee)
     cursor.execute("""
-        SELECT timestamp, changed_fields, userid 
-        FROM edit_log 
-        WHERE employee_id = %s AND action_type = 'edit_employee'
-        ORDER BY timestamp DESC
+        SELECT `timestamp`, `changed_fields`, `userid`
+        FROM `edit_log`
+        WHERE `employee_id` = %s AND `action_type` = 'edit_employee'
+        ORDER BY `timestamp` DESC
     """, (employee_id,))
     logs = cursor.fetchall()
 
