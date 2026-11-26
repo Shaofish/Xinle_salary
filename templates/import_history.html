@@ -186,7 +186,7 @@
                             <div class="step-badge">3</div>
                             <div>
                                 <h6 class="fw-bold">檢查年月格式</h6>
-                                <p class="text-muted">年份月份請確保為 6 位數字格式（如：202305）。重複月份的資料將被自動過濾。</p>
+                                <p class="text-muted">年份月份請確保為 6 位數字格式（如：202305）。相同員工與月份的既有資料將被更新，匯入前會預覽影響筆數；空白儲存格也可能覆蓋原值。</p>
                             </div>
                         </div>
                     </div>
@@ -227,18 +227,9 @@
         const display = document.getElementById('fileNameDisplay');
         if (input.files.length > 0) {
             display.style.display = 'inline-block';
-            display.innerHTML = '<i class="fa-solid fa-file-excel me-2"></i>已選取：' + input.files[0].name;
+            display.textContent = '已選取：' + input.files[0].name;
         }
     }
 
-    document.getElementById('importForm').onsubmit = function() {
-        const input = document.getElementById('fileInput');
-        if (input.files.length === 0) {
-            alert("請先選取 Excel 檔案後再點擊匯入！");
-            return false;
-        }
-        // 觸發全螢幕 Loading
-        document.getElementById('loadingOverlay').style.display = 'flex';
-    };
 </script>
 {% endblock %}

@@ -7,3 +7,4 @@ PyMySQL
 python-dateutil
 numpy
 XlsxWriter
+openpyxl

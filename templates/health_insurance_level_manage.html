@@ -91,7 +91,7 @@
     <div class="alert alert-info py-3 fs-5 shadow-sm border-start border-5 border-info">
         <i class="fa-solid fa-circle-exclamation me-2"></i> 
         目前視窗：<strong>{{ selected_year }} 年</strong> 的級距資料。
-        <span class="text-danger fw-bold">(注意：執行匯入將會「覆蓋」目前的 {{ selected_year }} 年資料)</span>
+        <span class="text-danger fw-bold">（匯入前會預覽實際取代年度與筆數，確認後才會更新）</span>
     </div>
 </div>
 
@@ -140,7 +140,7 @@
             <ul class="fs-6 text-muted">
                 <li>請先點擊上方年份按鈕切換至該年度（如 2024）。</li>
                 <li>執行「批量匯入」，系統會自動清除舊的 2024 資料並換成檔案內容。</li>
-                <li>這項操作<strong>絕對不會</strong>影響到其他年份的資料。</li>
+                <li>若 CSV 含 effective_year，會取代檔案列出的所有年度；請以匯入前預覽為準。</li>
             </ul>
         </div>
         <div class="col-md-6">
@@ -155,58 +155,8 @@
 </div>
 
 <script>
-document.getElementById('csvFile').onchange = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const targetYear = "{{ selected_year }}";
-    
-    // 彈出確認視窗，防止誤覆蓋
-    const confirmMsg = `【健保級距匯入確認】\n\n` +
-                       `目前選定年份：${targetYear} 年。\n` +
-                       `匯入後將會「完全取代」資料庫中 ${targetYear} 年的所有紀錄。\n\n` +
-                       `※ 如果您的 CSV 內含 effective_year 欄位，則會以檔案內的年份為準。\n` +
-                       `是否確定繼續？`;
-    
-    if(!confirm(confirmMsg)) {
-        this.value = ''; // 重置檔案選取
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('year', targetYear); 
-
-    // 鎖定按鈕並顯示 Loading 狀態
-    const btn = document.querySelector('button[onclick*="csvFile"]');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
-
-    fetch("{{ url_for('health_insurance_level_manage') }}", {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('網路回應不正常');
-        return res.json();
-    })
-    .then(data => {
-        if (data.success) {
-            alert(`✅ 健保級距表已更新成功！`);
-            // 如果匯入包含多個年份，重新整理頁面即可看到新標籤
-            location.href = "{{ url_for('health_insurance_level_manage') }}?year=" + targetYear;
-        } else {
-            alert('❌ 匯入失敗：' + data.error);
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    })
-    .catch(err => {
-        alert('系統發生連線錯誤：' + err);
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    });
-};
+document.addEventListener('DOMContentLoaded', () => {
+    WorkflowFeedback.csv('csvFile', {{ url_for('health_insurance_level_manage')|tojson }}, {{ selected_year|tojson }}, 'health');
+});
 </script>
 {% endblock %}

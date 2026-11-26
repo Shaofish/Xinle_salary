@@ -130,7 +130,7 @@
     </div>
 
     <div class="select-body">
-        <form method="POST">
+        <form method="POST" data-download-form data-remittance-preview="{{ url_for('export_remittance_batch', year_month='__MONTH__') }}">
             <div class="mb-4">
                 <label for="year" class="form-label">1. 請選擇薪資年份</label>
                 <select name="year" id="year" class="form-select form-select-lg" required>

@@ -139,6 +139,25 @@ input:focus {
     background-color: #fff;
 }
 
+.flash-message:not(.salary-success) {
+    margin-bottom: 22px;
+    padding: 20px 24px;
+    border: 2px solid #64748b;
+    border-left-width: 8px;
+    border-radius: 12px;
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1.7;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+.flash-message.success { background: #dcfce7; color: #14532d; border-color: #15803d; }
+.flash-message.warning { background: #fef3c7; color: #78350f; border-color: #b45309; }
+.flash-message.danger, .flash-message.error { background: #fee2e2; color: #7f1d1d; border-color: #b91c1c; }
+.flash-message.info { background: #dbeafe; color: #1e3a8a; border-color: #1d4ed8; }
+input:invalid:not(:placeholder-shown) { border-color: #b91c1c; }
+button:disabled { opacity: 0.65; cursor: wait; }
+
 /* 薪資儲存完成提示：在列表上方清楚呈現列印提醒。 */
 .flash-message.salary-success {
     display: flex;

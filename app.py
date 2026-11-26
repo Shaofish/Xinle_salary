@@ -14,6 +14,9 @@ from dateutil.relativedelta import relativedelta
 from urllib.parse import quote
 import numpy as np
 import MySQLdb.cursors
+from workflow_helpers import (number, year_month as valid_year_month, transfer_date,
+                              remittance_summary)
+from workflow_imports import import_insurance, import_history
 
 app = Flask(__name__)
 
@@ -32,9 +35,89 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'userid' not in session:
+            if request.headers.get('X-Workflow-Request') == '1':
+                return jsonify(success=False, error='請先重新登入；目前輸入仍保留在此頁，請勿關閉。'), 401
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+def form_feedback(f):
+    """Return save errors without navigating away from an edited browser form."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if request.method != 'POST':
+            return f(*args, **kwargs)
+        asynchronous = request.headers.get('X-Workflow-Request') == '1'
+        before = len(session.get('_flashes', []))
+        try:
+            if f.__name__ == 'edit_resign_date':
+                transfer_date(request.form.get('resign_date', ''))
+            if f.__name__ in ('add_employee', 'edit_profile'):
+                for field, label in [('employee_id', '員工編號'), ('employee_name', '員工姓名'),
+                                     ('employee_birth', '出生日期'), ('employee_onboard', '到職日期'),
+                                     ('position', '職位')]:
+                    if not request.form.get(field, '').strip():
+                        raise ValueError(f'請填寫{label}。')
+                for field in ('employee_birth', 'employee_onboard'):
+                    try:
+                        datetime.strptime(request.form[field], '%Y-%m-%d')
+                    except ValueError:
+                        raise ValueError('請填寫有效的出生日期與到職日期。') from None
+                account = request.form.get('bank_account', '').strip()
+                if account and (not account.isascii() or not account.isdigit()):
+                    raise ValueError('銀行帳號僅能輸入數字，請保留開頭的 0。')
+                for field in ('qualification', 'subsidy', 'subsidy_none', 'subsidy_half', 'subsidy_full'):
+                    number(request.form.get(field), column_mapping.get(field, field),
+                           integer=True, nonnegative=True, strict_integer=True)
+            response = make_response(f(*args, **kwargs))
+            if asynchronous:
+                messages = session.get('_flashes', [])
+                failures = [str(message) for category, message in messages[before:]
+                            if category in ('danger', 'error')]
+                if failures:
+                    session['_flashes'] = messages[:before]
+                    return jsonify(success=False, error='\n'.join(failures)), 400
+                if response.location:
+                    return jsonify(success=True, redirect=response.location)
+            return response
+        except Exception as error:
+            try:
+                mysql.connection.rollback()
+            except Exception:
+                pass
+            if isinstance(error, ValueError):
+                message, status = str(error), 400
+            else:
+                app.logger.exception('表單操作失敗')
+                message, status = '操作未完成，請確認資料與連線狀態後再重試。目前輸入仍保留在此頁。', 500
+            # Clear success notices queued by a save that did not finish.
+            session['_flashes'] = session.get('_flashes', [])[:before]
+            if asynchronous:
+                return jsonify(success=False, error=message), status
+            return render_template('operation_error.html', message=message), status
+    return decorated
+
+
+@app.errorhandler(500)
+def operation_failed(error):
+    message = '操作暫時無法完成，請確認連線後重試；若持續發生，請聯絡系統管理員。'
+    if request.headers.get('X-Workflow-Request') == '1':
+        return jsonify(success=False, error=message), 500
+    return render_template('operation_error.html', message=message), 500
+
+
+@app.errorhandler(ValueError)
+def invalid_input(error):
+    if request.headers.get('X-Workflow-Request') == '1':
+        return jsonify(success=False, error=str(error)), 400
+    return render_template('operation_error.html', message=str(error)), 400
+
+
+def export_summary(response, message, category='success'):
+    response.headers['X-Export-Summary'] = quote(json.dumps(
+        {'message': message, 'category': category}, ensure_ascii=False))
+    return response
 
 # ====== 自定義函數 ======
 def get_all_available_months(employee_id):
@@ -89,13 +172,14 @@ def get_latest_salary(employee_id):
     cur.close()
     return salary
 
-def log_edit(userid, employee_id, action_type, changed_fields: dict):
+def log_edit(userid, employee_id, action_type, changed_fields: dict, commit=True):
     cur = mysql.connection.cursor()
     cur.execute("""
         INSERT INTO edit_log (userid, employee_id, action_type, changed_fields)
         VALUES (%s, %s, %s, %s)
     """, (userid, employee_id, action_type, json.dumps(changed_fields, ensure_ascii=False)))
-    mysql.connection.commit()
+    if commit:
+        mysql.connection.commit()
     cur.close()
 
 def calculate_birthday_bonus(onboard_date_str, birth_str, salary_month=None):
@@ -381,6 +465,7 @@ def employee_manage():
 
 @app.route('/add_employee', methods=['GET', 'POST'])
 @login_required
+@form_feedback
 def add_employee():
     cursor = mysql.connection.cursor()
     if request.method == 'POST':
@@ -419,7 +504,7 @@ def add_employee():
             # 準備要顯示的文字 (使用 \\n 來讓彈出視窗的文字換行，看起來更清楚)
             error_msg = f"❌ 更新失敗：健保眷口設定不符！\\n\\n您選擇投保「{qualification} 名眷口」\\n但各項補助人數相加為 {total_subsidy_dependents} 人。"          
             # 直接回傳 JavaScript：彈出警告，並退回上一頁 (保留使用者輸入的資料)
-            return f"<script>alert('{error_msg}'); window.history.back();</script>"
+            raise ValueError(error_msg.replace('\\n', '\n'))
         leave_payment_month_of_year = request.form.get('leave_payment_month_of_year', None)
         if leave_payment_month_of_year == '': leave_payment_month_of_year = None
 
@@ -439,9 +524,10 @@ def add_employee():
             flash("成功新增員工資料", "success")
             return redirect(url_for('employee_manage'))
         except IntegrityError:
+            mysql.connection.rollback()
             cursor.close()
-            flash("資料庫錯誤（請檢查ID是否重複）", "error")
-            return render_template('add_employee.html', data=request.form)
+            flash("無法新增員工，請確認員工編號是否已存在，以及必填資料是否完整。", "error")
+            return redirect(url_for('add_employee'))
     
     # GET: 獲取級距列表供前端選單使用
     cursor.execute("SELECT DISTINCT effective_year FROM labor_insurance_level WHERE effective_year != 0 ORDER BY effective_year DESC")
@@ -465,6 +551,7 @@ def add_employee():
 
 @app.route('/edit_profile/<employee_id>', methods=['GET', 'POST'])
 @login_required
+@form_feedback
 def edit_profile(employee_id):
     if request.method == 'POST':
         # 1. 安全接收資料 (使用 .get 避免 KeyError)
@@ -504,7 +591,7 @@ def edit_profile(employee_id):
             # 準備要顯示的文字 (使用 \\n 來讓彈出視窗的文字換行，看起來更清楚)
             error_msg = f"❌ 更新失敗：健保眷口設定不符！\\n\\n您選擇投保「{qualification} 名眷口」\\n但各項補助人數相加為 {total_subsidy_dependents} 人。"          
             # 直接回傳 JavaScript：彈出警告，並退回上一頁 (保留使用者輸入的資料)
-            return f"<script>alert('{error_msg}'); window.history.back();</script>"
+            raise ValueError(error_msg.replace('\\n', '\n'))
         leave_month_input = request.form.get('leave_payment_month_of_year')
 
         if not leave_month_input or leave_month_input.strip() == "":
@@ -577,7 +664,8 @@ def edit_profile(employee_id):
                 'subsidy_full': subsidy_full,
                 'leave_payment_month_of_year': leave_payment_month_of_year,
                 'labor_insurance_grade': labor_grade,
-                'health_insurance_grade': health_grade
+                'health_insurance_grade': health_grade,
+                'insurance_grade_year': insurance_grade_year
             }
             
             # 特別處理：比對 ID 時，原始資料要拿 'employee_id'，新資料是 new_employee_id
@@ -599,13 +687,21 @@ def edit_profile(employee_id):
                     print(f"Log 寫入失敗: {e}") # 避免 Log 錯誤導致整個流程看起來像失敗
 
             flash('員工資料已成功更新', 'success')
+            payroll_fields = {'employee_birth', 'employee_onboard', 'position', 'has_single_level_certificate',
+                              'qualification', 'subsidy', 'subsidy_none', 'subsidy_half', 'subsidy_full',
+                              'labor_insurance_grade', 'health_insurance_grade', 'insurance_grade_year', 'leave_payment_month_of_year'}
+            if payroll_fields.intersection(changed):
+                flash('已調整可能影響薪資的員工設定。請核對相關月份的薪資、保費與補助；已建立的薪資不會因此自動全部重算。', 'warning')
+            if 'bank_account' in changed:
+                flash('銀行帳號已更新。若匯款清冊尚未送交銀行，請重新產生並核對帳號，避免使用舊檔案。', 'warning')
             return redirect(url_for('employee_manage'))
 
         except Exception as e:
             mysql.connection.rollback()
             # 將錯誤印在 Console 方便除錯
             print(f"Update Error: {e}")
-            flash(f'更新失敗: {str(e)}', 'danger')
+            app.logger.exception('員工資料更新失敗')
+            flash('員工資料更新失敗，請確認必填資料及資料庫連線後重試。', 'danger')
             return redirect(url_for('edit_profile', employee_id=employee_id))
         
         finally:
@@ -648,6 +744,7 @@ def edit_profile(employee_id):
 
 @app.route('/edit_resign_date/<employee_id>', methods=['GET', 'POST'])
 @login_required
+@form_feedback
 def edit_resign_date(employee_id):
     cursor = mysql.connection.cursor()
     
@@ -761,6 +858,7 @@ def reinstate_employee(employee_id):
 # ====== 編輯員工基本資料 ======
 @app.route('/edit_salary_tabs/<employee_id>', methods=['GET', 'POST'])
 @login_required
+@form_feedback
 def edit_salary_tabs(employee_id):
     # 分頁欄位
     fields_by_tab = {
@@ -845,7 +943,7 @@ def edit_salary_tabs(employee_id):
 
     # === GET/POST 共用: 確定當前處理月份 ===
     selected_month = request.args.get('year_month') or request.form.get('year_month')
-    selected_month = int(selected_month) if selected_month else int(datetime.today().strftime('%Y%m'))
+    selected_month = valid_year_month(selected_month) if selected_month else int(datetime.today().strftime('%Y%m'))
     selected_dt = datetime.strptime(str(selected_month), "%Y%m")
     action = request.args.get('action', 'edit')
     
@@ -862,7 +960,7 @@ def edit_salary_tabs(employee_id):
 
     # === POST 儲存薪資資料 ===
     if request.method == 'POST':
-        year_month = int(request.form['year_month'])
+        year_month = valid_year_month(request.form['year_month'])
         birthday_bonus = calculate_birthday_bonus(
             info['employee_onboard'], info['employee_birth'], year_month
         )
@@ -876,16 +974,25 @@ def edit_salary_tabs(employee_id):
                 values_dict[field] = birthday_bonus # 這是後端算的，直接用
 
             elif field in NULLABLE_INT_FIELDS:
-                values_dict[field] = safe_int(val) if val and val.strip() else None
+                values_dict[field] = number(val, column_mapping.get(field, field), integer=True) if val and val.strip() else None
 
             elif field in TEXT_FIELDS:
                 values_dict[field] = val.strip() if val and val.strip() else '無'
 
             elif field in FLOAT_FIELDS:
-                values_dict[field] = safe_float(val)
+                values_dict[field] = number(val, column_mapping.get(field, field), nonnegative=True)
 
             else:
-                values_dict[field] = safe_int(val)
+                values_dict[field] = number(val, column_mapping.get(field, field), integer=True)
+        if values_dict['leave_days'] < 0 or values_dict['leave_taken_days'] < 0:
+            raise ValueError('特休天數不可小於 0。')
+        if values_dict['leave_taken_days'] > values_dict['leave_days']:
+            raise ValueError('已請特休天數不能超過應給特休總天數，請修正後再儲存。')
+        adjustments = []
+        for field in ('Performance_bonuses', 'AA09_bonus'):
+            if values_dict.get(field, 0) < 0:
+                values_dict[field] = 0
+                adjustments.append(column_mapping[field] + '原為負數，已調整為 0')
         # 將績效獎金改為非負
         try:
             perf_bonus = round(values_dict.get('Performance_bonuses', 0))
@@ -899,18 +1006,15 @@ def edit_salary_tabs(employee_id):
         one_year_passed = is_past_one_year
 
         # 近三個月服務時數：僅做判斷，不入庫
-        try:
-            service_hours = safe_float(request.form.get('last_three_month_hours', 0))
-        except ValueError:
-            service_hours = 0
+        service_hours = number(request.form.get('last_three_month_hours', 0), '近三個月平均服務時數', nonnegative=True)
 
         # 原始金額（輸入）
         try:
-            caregiver_raw = int(request.form.get('home_caregiver_insurance', 0))
+            caregiver_raw = values_dict['home_caregiver_insurance']
         except ValueError:
             caregiver_raw = 0
         try:
-            group_raw = int(request.form.get('group_accident_insurance', 0))
+            group_raw = values_dict['group_accident_insurance']
         except ValueError:
             group_raw = 0
 
@@ -1008,7 +1112,7 @@ def edit_salary_tabs(employee_id):
 
             if changed:
                 changed['year_month'] = {"old": "", "new": str(year_month)}
-                log_edit(session['userid'], employee_id, 'edit_salary', changed)
+                log_edit(session['userid'], employee_id, 'edit_salary', changed, commit=False)
         else:
             columns = ['employee_id', 'year_month'] + all_fields
             placeholders = ['%s'] * len(columns)
@@ -1031,7 +1135,7 @@ def edit_salary_tabs(employee_id):
 
             if changed:
                 changed['year_month'] = {"old": "", "new": str(year_month)}
-                log_edit(session['userid'], employee_id, 'add_salary', changed)
+                log_edit(session['userid'], employee_id, 'add_salary', changed, commit=False)
 
         mysql.connection.commit()
         cur.close()
@@ -1053,6 +1157,8 @@ def edit_salary_tabs(employee_id):
             'period': f'{salary_date.year} 年 {salary_date.month} 月',
             'detail': detail,
         }, 'salary-success')
+        if adjustments:
+            flash('；'.join(adjustments) + '，請核對儲存後的薪資。', 'warning')
         return redirect(url_for('employee_list'))
 
     # === GET 頁面載入 ===
@@ -1119,13 +1225,15 @@ def edit_salary_tabs(employee_id):
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute(
-        """SELECT daily_work_hr, holiday_work_hr 
+        """SELECT year_month, daily_work_hr, holiday_work_hr
            FROM employee_salary 
            WHERE employee_id = %s AND `year_month` IN (%s, %s)""",
         (employee_id, past_months[0], past_months[1])
     )
     past_records = cursor.fetchall()
     cursor.close()
+    recorded_months = {int(rec['year_month']) for rec in past_records}
+    missing_hours_months = [month for month in past_months if month not in recorded_months]
 
     past_two_months_hours = 0
     for rec in past_records:
@@ -1232,7 +1340,8 @@ def edit_salary_tabs(employee_id):
                             past_two_months_hours=past_two_months_hours,
                             info=info,
                             is_new_record=is_new_record,
-                            insurance_copied_from_previous=insurance_copied_from_previous)
+                            insurance_copied_from_previous=insurance_copied_from_previous,
+                            missing_hours_months=missing_hours_months)
 
 # ====== 預覽薪資資料 ======
 @app.route('/preview_salary/<employee_id>')
@@ -1446,7 +1555,8 @@ def export_pdf(employee_id, year_month):
     cur.close()
 
     if not rows:
-        return "無資料可匯出", 404
+        flash('找不到此月份的薪資資料，請先新增薪資或選擇其他月份。', 'danger')
+        return redirect(url_for('employee_list'))
 
     rendered = render_template('salary_pdf_template.html', rows=rows, employee_id=employee_id, now_date=datetime.today().strftime('%Y/%m/%d'))
 
@@ -1490,7 +1600,9 @@ def export_excel(employee_id):
     rows = cur.fetchall()
     
     if not rows:
-        return f"找不到 employee_id 為 {employee_id} 的資料", 404
+        cur.close()
+        flash('此員工尚無薪資資料，請先新增薪資後再匯出。', 'danger')
+        return redirect(url_for('employee_list'))
 
     # 取得員工姓名（從第一筆資料中取得）
     employee_name = rows[0]['employee_name'] if rows else employee_id
@@ -1622,73 +1734,55 @@ def export_pdf_by_month():
 @app.route('/export_pdf_batch/<year_month>')
 @login_required
 def export_pdf_batch(year_month):
-    from urllib.parse import quote
-    import zipfile
-
+    year_month = valid_year_month(year_month)
     cur = mysql.connection.cursor()
-    cur.execute(
-        "SELECT DISTINCT `員工編號` FROM `view_salary_export` WHERE `年/月` = %s",
-        (year_month,)
-    )
-    employee_ids = [row['員工編號'] for row in cur.fetchall()]
-
-    if not employee_ids:
-        cur.close()
-        flash(f"{year_month} 沒有任何薪資資料可供匯出", "danger")
-        return redirect(url_for('export_pdf_by_month'))
-
-    configuration = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
-
-    zip_buffer = BytesIO()
+    failed = []
     success_count = 0
-
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for employee_id in employee_ids:
-            # 查詢員工姓名
-            cur.execute("SELECT employee_name FROM employee_info WHERE employee_id = %s", (employee_id,))
-            employee_info = cur.fetchone()
-            employee_name = employee_info['employee_name'] if employee_info else employee_id
-
-            # 查詢薪資資料
-            cur.execute(
-                "SELECT * FROM `view_salary_export` WHERE `員工編號` = %s AND `年/月` = %s",
-                (employee_id, year_month)
-            )
-            rows = cur.fetchall()
-
-            if not rows:
-                continue
-
-            try:
-                rendered = render_template(
-                    'salary_pdf_template.html',
-                    rows=rows,
-                    employee_id=employee_id,
-                    now_date=datetime.today().strftime('%Y/%m/%d')
-                )
-                pdf_file = pdfkit.from_string(rendered, False, configuration=configuration)
-
-                pdf_filename = f"{employee_name}{year_month}.pdf"
-                zf.writestr(pdf_filename, pdf_file)
-                success_count += 1
-            except Exception as e:
-                print(f"匯出 {employee_id} PDF 失敗: {e}")
-                continue
-
-    cur.close()
-
-    if success_count == 0:
-        flash(f"{year_month} 沒有任何員工成功匯出PDF", "danger")
-        return redirect(url_for('export_pdf_by_month'))
-
-    zip_buffer.seek(0)
-    zip_filename = f"{year_month}薪資單批次匯出.zip"
-    encoded_filename = quote(zip_filename)
-
-    response = make_response(zip_buffer.read())
-    response.headers['Content-Type'] = 'application/zip'
-    response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_filename}"
-    return response
+    zip_buffer = BytesIO()
+    try:
+        cur.execute("SELECT DISTINCT `員工編號` FROM `view_salary_export` WHERE `年/月` = %s", (year_month,))
+        employee_ids = [row['員工編號'] for row in cur.fetchall()]
+        if not employee_ids:
+            flash(f'{year_month} 沒有薪資資料可供匯出，請先新增薪資或選擇其他月份。', 'danger')
+            return redirect(url_for('export_pdf_by_month'))
+        configuration = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for employee_id in employee_ids:
+                cur.execute('SELECT employee_name FROM employee_info WHERE employee_id = %s', (employee_id,))
+                employee = cur.fetchone()
+                name = employee['employee_name'] if employee else str(employee_id)
+                cur.execute('SELECT * FROM view_salary_export WHERE `員工編號` = %s AND `年/月` = %s', (employee_id, year_month))
+                rows = cur.fetchall()
+                if not rows:
+                    failed.append(f'{name}（{employee_id}）：找不到薪資明細')
+                    continue
+                try:
+                    rendered = render_template('salary_pdf_template.html', rows=rows, employee_id=employee_id,
+                                               now_date=datetime.today().strftime('%Y/%m/%d'))
+                    pdf_file = pdfkit.from_string(rendered, False, configuration=configuration)
+                    filename = f'{name}{year_month}.pdf'
+                    if filename in archive.namelist():
+                        filename = f'{name}_{employee_id}_{year_month}.pdf'
+                    archive.writestr(filename, pdf_file)
+                    success_count += 1
+                except Exception:
+                    app.logger.exception('員工 PDF 匯出失敗：%s', employee_id)
+                    failed.append(f'{name}（{employee_id}）：PDF 產生失敗，請重試或聯絡管理員')
+            message = f'{year_month} 薪資單：預計 {len(employee_ids)} 份，成功 {success_count} 份，失敗 {len(failed)} 份。'
+            report = message + '\n' + ('\n'.join(failed) if failed else '所有薪資單均已產生。')
+            archive.writestr('匯出結果.txt', report.encode('utf-8-sig'))
+        if not success_count:
+            flash(message + '\n' + '\n'.join(failed[:10]), 'danger')
+            return redirect(url_for('export_pdf_by_month'))
+        zip_buffer.seek(0)
+        response = make_response(zip_buffer.read())
+        response.headers['Content-Type'] = 'application/zip'
+        response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(str(year_month) + '薪資單批次匯出.zip')}"
+        if failed:
+            message += '\n' + '\n'.join(failed[:5]) + '\n完整失敗名單請查看 ZIP 內的「匯出結果.txt」。'
+        return export_summary(response, message, 'warning' if failed else 'success')
+    finally:
+        cur.close()
 
 # ====== 匯出 Excel - 生成 Excel ======
 @app.route('/export_excel_by_month/<year_month>')
@@ -1719,7 +1813,9 @@ def export_excel_by_month(year_month):
     rows = cur.fetchall()
     
     if not rows:
-        return f"找不到 {year_month} 的薪資資料", 404
+        cur.close()
+        flash(f'找不到 {year_month} 的薪資資料，請先新增薪資或選擇其他月份。', 'danger')
+        return redirect(url_for('employee_list'))
 
     # ✅ 轉換為 pandas DataFrame
     df = pd.DataFrame(rows, columns=[desc[0] for desc in cur.description])
@@ -1813,8 +1909,9 @@ def export_remittance_select():
 @app.route('/export_remittance_batch/<year_month>')
 @login_required
 def export_remittance_batch(year_month):
-    tenth_date = request.args.get('tenth_date', '')
-    thirtieth_date = request.args.get('thirtieth_date', '')
+    year_month = valid_year_month(year_month)
+    tenth_date = transfer_date(request.args.get('tenth_date', ''))
+    thirtieth_date = transfer_date(request.args.get('thirtieth_date', ''))
 
     if not tenth_date or not thirtieth_date:
         flash('缺少轉帳日期參數，請重新選擇', 'danger')
@@ -1822,7 +1919,7 @@ def export_remittance_batch(year_month):
 
     cur = mysql.connection.cursor()
     cur.execute("""
-        SELECT s.`tenth_salary`, s.`thirtieth_salary`,
+        SELECT s.`employee_id`, s.`tenth_salary`, s.`thirtieth_salary`,
                i.`employee_name`, i.`employee_card`, i.`bank_account`
         FROM `employee_salary` s
         JOIN `employee_info` i ON s.`employee_id` = i.`employee_id`
@@ -1831,6 +1928,16 @@ def export_remittance_batch(year_month):
     """, (year_month,))
     rows = cur.fetchall()
     cur.close()
+
+    summary = remittance_summary(rows, tenth_date, thirtieth_date)
+    if not rows or not any(batch['count'] for batch in summary['batches']):
+        summary['errors'].append('此月份沒有任何正額匯款資料可供匯出。')
+    if request.args.get('preview') == '1':
+        return jsonify(success=not summary['errors'], summary=summary,
+                       error='\n'.join(summary['errors']))
+    if summary['errors']:
+        flash('匯款清冊尚未產生，請先修正以下資料：' + '\n' + '\n'.join(summary['errors'][:10]), 'danger')
+        return redirect(url_for('export_remittance_select'))
 
     if not rows:
         flash(f"{year_month} 沒有任何薪資資料可供匯出", "danger")
@@ -1908,7 +2015,7 @@ def hide_employee(employee_id):
     cur.execute("UPDATE employee_info SET is_hidden = TRUE WHERE employee_id = %s", (employee_id,))
     mysql.connection.commit()
     cur.close()
-    flash("員工資料已刪除", "info")
+    flash("員工已隱藏，不再顯示於名單；既有員工與薪資資料仍保留。", "info")
     return redirect(url_for('employee_manage'))
 
 # ====== 勞保級距設定 ======
@@ -1970,55 +2077,8 @@ def labor_insurance_level_manage():
         selected_year = datetime.now().year
 
     if request.method == 'POST':
-        if 'file' in request.files:
-            file = request.files['file']
-            # 前端標籤的年份（作為備用）
-            fallback_year = request.form.get('year', selected_year, type=int)
-            
-            try:
-                df = pd.read_csv(io.BytesIO(file.read()), encoding='utf-8-sig')
-                df.columns = [c.lower().strip() for c in df.columns]
-
-                def clean_val(value):
-                    if pd.isna(value) or str(value).strip() == '': return 0
-                    return int(str(value).replace(',', '').replace(' ', '').split('.')[0])
-
-                # ✨ 核心修正：偵測 CSV 內是否有年份欄位
-                has_year_col = 'effective_year' in df.columns
-                
-                # 找出 CSV 中所有的年份並執行精準刪除 (避免重複)
-                if has_year_col:
-                    import_years = df['effective_year'].unique()
-                    for y in import_years:
-                        cursor.execute("DELETE FROM labor_insurance_level WHERE effective_year = %s", (int(y),))
-                else:
-                    cursor.execute("DELETE FROM labor_insurance_level WHERE effective_year = %s", (fallback_year,))
-                
-                # 逐行寫入
-                for _, row in df.iterrows():
-                    # ✨ 優先使用 CSV 裡的年份
-                    row_year = int(row['effective_year']) if has_year_col else fallback_year
-                    
-                    cursor.execute("""
-                        INSERT INTO labor_insurance_level 
-                        (`range`, `employee_labor`, `company_labor`, `company_occu`, `company_retire`, `effective_year`)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (
-                        clean_val(row['range']), 
-                        clean_val(row['employee_labor']), 
-                        clean_val(row['company_labor']), 
-                        clean_val(row['company_occu']), 
-                        clean_val(row['company_retire']), 
-                        row_year
-                    ))
-                
-                mysql.connection.commit()
-                return jsonify({'success': True})
-            except Exception as e:
-                mysql.connection.rollback()
-                return jsonify({'success': False, 'error': str(e)})
-
-        return redirect(url_for('labor_insurance_level_manage', year=selected_year))
+        cursor.close()
+        return import_insurance(mysql, 'labor')
 
     cursor.execute("SELECT * FROM labor_insurance_level WHERE effective_year = %s ORDER BY `range` ASC", (selected_year,))
     levels = cursor.fetchall()
@@ -2084,71 +2144,8 @@ def health_insurance_level_manage():
         selected_year = datetime.now().year
 
     if request.method == 'POST':
-        # ✨ 處理 AJAX CSV 批量匯入
-        if 'file' in request.files:
-            file = request.files['file']
-            # 前端標籤選定的年份 (備用)
-            fallback_year = request.form.get('year', selected_year, type=int)
-            
-            try:
-                # 讀取 CSV
-                df = pd.read_csv(io.BytesIO(file.read()), encoding='utf-8-sig')
-                
-                # 統一標題為小寫並去除兩端空白，並相容 Range/range
-                df.rename(columns={'Range': 'range'}, inplace=True)
-                df.columns = [c.lower().strip() for c in df.columns]
-
-                # 定義資料清洗函數：解決 "data truncated" (移除逗號、空格)
-                def clean_val(value):
-                    if pd.isna(value) or str(value).strip() == '':
-                        return 0
-                    # 移除逗號、空白、小數點以後的內容，確保轉為純整數
-                    cleaned = str(value).replace(',', '').replace(' ', '').replace('$', '').split('.')[0]
-                    return int(cleaned)
-
-                # ✨ 核心修正：偵測 CSV 內是否有 effective_year 欄位
-                has_year_col = 'effective_year' in df.columns
-                
-                # 找出 CSV 中包含的所有年份，執行精準刪除，防止不同年份資料混雜
-                if has_year_col:
-                    import_years = df['effective_year'].unique().tolist()
-                    for y in import_years:
-                        cursor.execute("DELETE FROM health_insurance_level WHERE effective_year = %s", (int(y),))
-                else:
-                    cursor.execute("DELETE FROM health_insurance_level WHERE effective_year = %s", (fallback_year,))
-                    import_years = [fallback_year]
-                
-                # 逐行清洗並匯入
-                for _, row in df.iterrows():
-                    # 優先使用 CSV 內的年份，若無則使用標籤年份
-                    row_year = int(row['effective_year']) if has_year_col else fallback_year
-                    
-                    cursor.execute("""
-                        INSERT INTO health_insurance_level 
-                        (`Range`, `employee_and0`, `employee_and1`, `employee_and2`, `employee_and3`, `company_health`, `effective_year`)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        clean_val(row['range']), 
-                        clean_val(row['employee_and0']),
-                        clean_val(row['employee_and1']), 
-                        clean_val(row['employee_and2']),
-                        clean_val(row['employee_and3']), 
-                        clean_val(row['company_health']),
-                        row_year
-                    ))
-                
-                mysql.connection.commit()
-                return jsonify({'success': True, 'years': import_years})
-            except Exception as e:
-                mysql.connection.rollback()
-                print(f"DEBUG - 健保匯入報錯: {str(e)}") # 這會印在您的 Python 終端機
-                return jsonify({'success': False, 'error': str(e)})
-
-        # 保留單筆修改/刪除邏輯...
-        action = request.form.get('action')
-        # ... 原本邏輯 ...
-        
-        return redirect(url_for('health_insurance_level_manage', year=selected_year))
+        cursor.close()
+        return import_insurance(mysql, 'health')
 
     # GET 請求：撈取指定年份
     cursor.execute("SELECT * FROM health_insurance_level WHERE effective_year = %s ORDER BY `Range` ASC", (selected_year,))
@@ -2250,136 +2247,14 @@ def import_history_select():
 @app.route('/import_history_process', methods=['POST'])
 @login_required
 def import_history_process():
-    if 'file' not in request.files:
-        flash('未選擇檔案', 'danger')
-        return redirect(url_for('import_history_select'))
-    
-    file = request.files['file']
-    if file.filename == '':
-        flash('檔案名稱為空', 'danger')
-        return redirect(url_for('import_history_select'))
-
-    try:
-        # 1. 讀取 Excel 並處理標題對應
-        df = pd.read_excel(file)
-        reverse_mapping = {v: k for k, v in column_mapping.items()}
-        df.rename(columns=reverse_mapping, inplace=True)
-
-        cur = mysql.connection.cursor()
-        
-        # 獲取資料庫欄位清單
-        cur.execute("DESCRIBE `employee_salary`")
-        desc_result = cur.fetchall()
-        db_columns = [row['Field'] if isinstance(row, dict) else row[0] for row in desc_result]
-        
-        success_count = 0
-        skipped_ids = []
-
-        for index, row in df.iterrows():
-            employee_id = str(row.get('employee_id', '')).strip()
-            year_month_raw = str(row.get('year_month', '')).replace('.0', '')
-            
-            if not employee_id or employee_id == 'nan' or not year_month_raw:
-                continue
-
-            # 2. 獲取該員工的基本身分資訊 (用於保險計算)
-            cur.execute("""
-                SELECT qualification, subsidy, subsidy_none, subsidy_half, subsidy_full 
-                FROM employee_info 
-                WHERE employee_id = %s
-            """, (employee_id,))
-            emp_info = cur.fetchone()
-            
-            if not emp_info:
-                skipped_ids.append(employee_id)
-                continue
-            
-            # 解析年份 (例如 202405 -> 2024)
-            year = int(year_month_raw[:4])
-
-            # 3. 準備基礎數據與處理空值
-            import_data = {}
-            for k, v in row.to_dict().items():
-                if k in db_columns:
-                    if pd.isnull(v):
-                        import_data[k] = 0 if any(x in k.lower() for x in ['hr', 'bonus', 'amout', 'amount', 'salary', 'grade']) else None
-                    else:
-                        import_data[k] = v
-            
-            # 4. 🌟 核心補值邏輯：自動查表填入「公司負擔」相關欄位
-            # (A) 勞保、職保、勞退 6% 補值
-            labor_grade = safe_int(import_data.get('total_payment_insure_grade', 0))
-            if labor_grade > 0:
-                labor_res = get_full_labor_details(cur, labor_grade, year)
-                if labor_res:
-                    # 如果 Excel 中的自付額是 0，則從級距表補回
-                    if safe_int(import_data.get('Labor_premiums', 0)) == 0:
-                        import_data['Labor_premiums'] = labor_res.get('employee_labor', 0)
-                    
-                    # 強制填入公司負擔額
-                    import_data['company_labor'] = labor_res.get('company_labor', 0)
-                    import_data['company_occu'] = labor_res.get('company_occu', 0)
-                    import_data['company_retire'] = labor_res.get('company_retire', 0)
-
-            # (B) 健保公出補值
-            health_grade = safe_int(import_data.get('health_insure_grade', 0))
-            if health_grade > 0:
-                health_res = get_full_health_details(
-                    cur, 
-                    health_grade, 
-                    emp_info.get('qualification', 0), 
-                    emp_info.get('subsidy', 0), 
-                    emp_info.get('subsidy_none', 0),
-                    emp_info.get('subsidy_half', 0),
-                    emp_info.get('subsidy_full', 0),
-                    year
-                )
-                if health_res:
-                    # 如果 Excel 中的自付額是 0，補回算好的自付額
-                    if safe_int(import_data.get('Insurance_amount', 0)) == 0:
-                        import_data['Insurance_amount'] = health_res.get('Insurance_amount', 0)
-                    
-                    # 強制填入單位健保負擔
-                    import_data['company_health'] = health_res.get('company_health', 0)
-
-            # 5. 執行寫入 (包含重複月份更新)
-            if not import_data: continue
-
-            fields = list(import_data.keys())
-            placeholders = ', '.join(['%s'] * len(fields))
-            columns_str = ', '.join([f'`{f}`' for f in fields])
-            update_clause = ', '.join([f'`{f}` = VALUES(`{f}`)' for f in fields])
-            
-            sql = f"""
-                INSERT INTO `employee_salary` ({columns_str}) 
-                VALUES ({placeholders}) 
-                ON DUPLICATE KEY UPDATE {update_clause}
-            """
-            
-            cur.execute(sql, tuple(import_data.values()))
-            success_count += 1
-        
-        mysql.connection.commit()
-        cur.close()
-        
-        flash(f'✅ 成功匯入/更新 {success_count} 筆資料。公司負擔額已根據級距表自動補齊。', 'success')
-        if skipped_ids:
-            flash(f'⚠️ 提示：員工編號 {list(set(skipped_ids))} 不存在，已跳過。', 'warning')
-        
-    except Exception as e:
-        if 'cur' in locals(): 
-            mysql.connection.rollback()
-            cur.close()
-        flash(f'❌ 匯入失敗：{str(e)}', 'danger')
-
-    return redirect(url_for('user'))
+    return import_history(mysql, column_mapping, get_full_labor_details, get_full_health_details)
 
 def get_full_labor_details(cursor, grade_val, year):
     """根據年份與勞保級距，抓取員工自付與單位負擔明細"""
     try:
         # 尋找該年份最接近且大於等於該金額的級距
         cursor.execute("""
-            SELECT `employee_labor`, `company_labor`, `company_occu`, `company_retire`
+            SELECT `employee_labor`, `company_labor`, `company_occu`, `company_retire`, `effective_year`
             FROM labor_insurance_level 
             WHERE `range` >= %s AND effective_year = %s 
             ORDER BY `range` ASC LIMIT 1
@@ -2389,7 +2264,7 @@ def get_full_labor_details(cursor, grade_val, year):
         # 防呆：若該年無資料則抓最新年份
         if not res:
             cursor.execute("""
-                SELECT `employee_labor`, `company_labor`, `company_occu`, `company_retire`
+                SELECT `employee_labor`, `company_labor`, `company_occu`, `company_retire`, `effective_year`
                 FROM labor_insurance_level 
                 WHERE `range` >= %s ORDER BY effective_year DESC, `range` ASC LIMIT 1
             """, (grade_val,))
@@ -2403,7 +2278,7 @@ def get_full_health_details(cursor, grade_val, qualification, subsidy, subsidy_n
     """根據年份與健保級距，計算員工自付額並抓取單位負擔"""
     try:
         cursor.execute("""
-            SELECT `employee_and0`, `company_health`
+            SELECT `employee_and0`, `company_health`, `effective_year`
             FROM health_insurance_level 
             WHERE `Range` >= %s AND effective_year = %s 
             ORDER BY `Range` ASC LIMIT 1
@@ -2412,7 +2287,7 @@ def get_full_health_details(cursor, grade_val, qualification, subsidy, subsidy_n
         
         if not res:
             cursor.execute("""
-                SELECT `employee_and0`, `company_health`
+                SELECT `employee_and0`, `company_health`, `effective_year`
                 FROM health_insurance_level 
                 WHERE `Range` >= %s ORDER BY effective_year DESC, `Range` ASC LIMIT 1
             """, (grade_val,))
@@ -2459,7 +2334,8 @@ def get_full_health_details(cursor, grade_val, qualification, subsidy, subsidy_n
 
         return {
             'Insurance_amount': total_pay,
-            'company_health': res.get('company_health', 0)
+            'company_health': res.get('company_health', 0),
+            'effective_year': res.get('effective_year', year)
         }
     except Exception as e:
         print(f"健保查表失敗: {e}")

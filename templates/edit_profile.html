@@ -91,7 +91,8 @@
         </a>
     </div>
 
-    <form method="POST">
+    <form method="POST" data-save-feedback>
+        <div id="insurance-year-notices" aria-live="polite"></div>
         <div class="row">
             <div class="col-md-6 mb-4">
                 <label class="form-label">員工編號 <span class="text-danger">*</span></label>
@@ -261,6 +262,8 @@
             fetch(`/get_health_insurance_levels/${year}`).then(r => r.json())
         ])
         .then(([laborLevels, healthLevels]) => {
+            WorkflowFeedback.reportInsuranceLevels('勞保', laborLevels, year);
+            WorkflowFeedback.reportInsuranceLevels('健保', healthLevels, year);
             // 填入勞保
             laborSelect.innerHTML = '<option value="">請選擇級距</option>';
             laborLevels.forEach(l => {
@@ -282,6 +285,7 @@
             });
         })
         .catch(() => {
+            WorkflowFeedback.notice('保險級距載入失敗，請確認連線後重新選擇年度；請先核對保費再儲存。', 'danger', 'insurance-load', document.getElementById('insurance-year-notices'));
             laborSelect.innerHTML = '<option>請選擇級距</option>';
             healthSelect.innerHTML = '<option>請選擇級距</option>';
         });

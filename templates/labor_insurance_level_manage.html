@@ -62,7 +62,7 @@
     <div class="alert alert-warning py-3 fs-5 shadow-sm border-start border-5 border-warning">
         <i class="fa-solid fa-triangle-exclamation me-2"></i> 
         目前視窗：<strong>{{ selected_year }} 年</strong>。
-        <span class="text-dark fw-bold">在此視窗匯入 CSV 將會「覆蓋」 {{ selected_year }} 年的舊資料。</span>
+        <span class="text-dark fw-bold">匯入前會列出實際取代年度；CSV 內的 effective_year 優先於目前選定年度。</span>
     </div>
 </div>
 
@@ -101,58 +101,15 @@
 <div class="mt-4 p-4 bg-light rounded border shadow-sm" style="border-left: 8px solid #2b6cb0 !important;">
     <h5 class="fw-bold text-primary"><i class="fa-solid fa-circle-info"></i> 操作提示：</h5>
     <ul class="mb-0 fs-5 text-muted">
-        <li><strong>如何新增 2024 年？</strong> 請先透過單筆新增一筆 2024 資料，標籤出現後點擊「2024年」標籤，再執行批量匯入。</li>
-        <li><strong>會影響其他年份嗎？</strong> 不會，系統只會針對您目前選定的 <strong>{{ selected_year }} 年</strong> 進行資料重整。</li>
+        <li><strong>如何新增 2024 年？</strong> 請在 CSV 加入 effective_year 欄位並填寫 2024，匯入前會列出實際年度供確認。</li>
+        <li><strong>會影響其他年份嗎？</strong> 若 CSV 含 effective_year，將取代檔案列出的所有年度；沒有年度欄位時，才使用目前選定的 {{ selected_year }} 年。</li>
         <li><strong>CSV 欄位要求：</strong> 必須包含 <code>range, employee_labor, company_labor, company_occu, company_retire</code>。</li>
     </ul>
 </div>
 
 <script>
-document.getElementById('csvFile').onchange = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const targetYear = "{{ selected_year }}";
-    const confirmMsg = `【勞保級距批量匯入確認】\n\n` +
-                       `您目前選定的目標年份為：${targetYear} 年。\n` +
-                       `注意：匯入後將會替換掉所有 ${targetYear} 年的舊有資料。\n\n` +
-                       `是否確定執行？`;
-    
-    if(!confirm(confirmMsg)) {
-        this.value = '';
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('year', targetYear);
-
-    // 精準抓取匯入按鈕以顯示 Loading 狀態
-    const btn = document.querySelector('button[onclick*="csvFile"]');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
-
-    fetch("{{ url_for('labor_insurance_level_manage') }}", {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert(`✅ ${targetYear} 年勞保級距表已成功更新！`);
-            location.href = "{{ url_for('labor_insurance_level_manage') }}?year=" + targetYear;
-        } else {
-            alert('❌ 匯入失敗，請檢查 CSV 欄位名稱是否正確。\n錯誤訊息：' + data.error);
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    })
-    .catch(err => {
-        alert('系統發生網路錯誤：' + err);
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    });
-};
+document.addEventListener('DOMContentLoaded', () => {
+    WorkflowFeedback.csv('csvFile', {{ url_for('labor_insurance_level_manage')|tojson }}, {{ selected_year|tojson }}, 'labor');
+});
 </script>
 {% endblock %}

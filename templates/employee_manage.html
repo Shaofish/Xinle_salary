@@ -144,7 +144,7 @@
                             
                             <form method="POST" action="{{ url_for('resign_employee', employee_id=e.employee_id) }}" style="display: inline;">
                                 <button type="submit" class="btn btn-sm-custom" style="background: #ff6600; color: white;" 
-                                        onclick="return confirm('⚠️ 確定要將【{{ e.employee_name }}】標記為離職嗎？')">離職</button>
+                                        onclick="return confirm('⚠️ 確定要將【{{ e.employee_name }}】標記為離職嗎？離職日期會先設定為今天，之後可再修改。')">離職</button>
                             </form>
                             <a href="{{ url_for('edit_log_profile', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
                             <a href="{{ url_for('insurance_history', employee_id=e.employee_id) }}" 
@@ -194,7 +194,7 @@
                             <a href="{{ url_for('edit_log_profile', employee_id=e.employee_id) }}" class="btn btn-secondary btn-sm-custom">紀錄</a>
                             <form method="POST" action="{{ url_for('hide_employee', employee_id=e.employee_id) }}" style="display: inline;">
                                 <button type="submit" class="btn btn-sm-custom" style="background: #c53030; color: white;"
-                                        onclick="return confirm('確定刪除此歷史紀錄嗎？') && confirm('⚠️ 再次確認：刪除後將無法恢復！您真的確定要刪除嗎？')">刪除</button>
+                                        onclick="return confirm('確定隱藏此員工嗎？隱藏後不再顯示於名單，既有員工與薪資資料仍保留。')">隱藏</button>
                             </form>
                         </div>
                     </td>

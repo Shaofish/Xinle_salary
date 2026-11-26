@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}操作未完成{% endblock %}
+{% block content %}
+<h2>操作未完成</h2>
+<div class="flash-message danger" role="alert">{{ message }}</div>
+<p>請返回原頁確認資料與處理結果後再重試。</p>
+<a class="btn btn-secondary" href="{{ url_for('user') }}">返回系統首頁</a>
+{% endblock %}

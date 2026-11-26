@@ -7,7 +7,7 @@
     <p style="font-size: 22px;">員工：<strong>{{ emp.employee_name }}</strong></p>
     <p style="font-size: 20px; color: #718096;">目前離職日：{{ emp.resign_date.strftime('%Y-%m-%d') if emp.resign_date else '未設定' }}</p>
     
-    <form method="POST">
+    <form method="POST" data-save-feedback>
         <label style="font-size: 22px; font-weight: bold; display: block; margin-bottom: 10px;">新離職日期：</label>
         <input type="date" name="resign_date" 
                value="{{ emp.resign_date.strftime('%Y-%m-%d') if emp.resign_date else '' }}"

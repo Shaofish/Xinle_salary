@@ -6,6 +6,7 @@
     <title>{% block title %}薪資計算系統{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script defer src="{{ url_for('static', filename='workflow.js') }}"></script>
     <style>
         /* 針對長輩閱讀優化：加強選單可見度 */
         .nav-bar {
@@ -36,6 +37,7 @@
     </div>
 
     <main>
+        <div id="workflow-notices" aria-live="polite"></div>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -49,7 +51,7 @@
                         </div>
                     </div>
                     {% else %}
-                    <div class="flash-message {{ category }} shadow-sm">
+                    <div class="flash-message {{ category }} shadow-sm" role="{{ 'alert' if category in ['error', 'danger'] else 'status' }}">
                         <i class="fa-solid fa-circle-info"></i> {{ message }}
                     </div>
                     {% endif %}
