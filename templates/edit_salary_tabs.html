@@ -741,6 +741,29 @@
         if (aa09Input) aa09Input.value = (perf < 0 ? (av + perf) : av).toFixed(2);
     }
 
+    function overtimeHours(fieldId) {
+        return parseFloat(document.getElementById(fieldId)?.value) || 0;
+    }
+
+    function calcWeekdayOvertime() {
+        const first = HOURLY_WAGE * overtimeHours('Overtime_pay_weekdays910hr') * 0.34;
+        const second = HOURLY_WAGE * overtimeHours('Overtime_pay_weekdays1112hr') * 0.67;
+        const target = document.getElementById('total_overtime_pay_weekdays');
+        if (target) target.value = Math.round(first + second);
+    }
+
+    function calcRestdayOvertime() {
+        const first = HOURLY_WAGE * overtimeHours('Overtime_pay_rest_days12hr') * 0.34;
+        const second = HOURLY_WAGE * overtimeHours('Overtime_pay_rest_days38hr') * 0.67;
+        const target = document.getElementById('total_overtime_pay_restdays');
+        if (target) target.value = Math.round(first + second);
+    }
+
+    function calcNationalHolidayOvertime() {
+        const target = document.getElementById('total_pay_national_holidays');
+        if (target) target.value = Math.round(HOURLY_WAGE * overtimeHours('National_holidays_hr'));
+    }
+
     function recalcLeave() {
         const days = parseFloat(document.getElementById("leave_days")?.value || 0);
         document.querySelectorAll('.leave-days-display').forEach(el => {
@@ -863,6 +886,9 @@
         // 執行初始計算
         calcHolidayHours();
         calculateSplit(); 
+        calcWeekdayOvertime();
+        calcRestdayOvertime();
+        calcNationalHolidayOvertime();
         calcPerformanceBonus();
         recalcLeave();
         syncRetirementRadio();
@@ -883,6 +909,15 @@
                     calcHolidayHours();
                 } else {
                     calculateTotalHours();
+                }
+                if (['Overtime_pay_weekdays910hr', 'Overtime_pay_weekdays1112hr'].includes(input.id)) {
+                    calcWeekdayOvertime();
+                }
+                if (['Overtime_pay_rest_days12hr', 'Overtime_pay_rest_days38hr'].includes(input.id)) {
+                    calcRestdayOvertime();
+                }
+                if (input.id === 'National_holidays_hr') {
+                    calcNationalHolidayOvertime();
                 }
                 calcPerformanceBonus();
                 recalcLeave();
