@@ -272,6 +272,17 @@ def safe_float(value):
     except (ValueError, TypeError):
         return 0.0
 
+def employee_flag_from_form(field, previous=None):
+    value = request.form.get(field)
+    if value is None:
+        return previous
+    if value == '':
+        return None
+    if value in ('0', '1'):
+        return int(value)
+    raise ValueError(f'{column_mapping[field]}請選擇是或否。')
+
+
 def calculate_licence_allowance(employee_info, salary):
     # 單一級證照津貼：當月服務時數（平日＋假日）達 130 小時，含 130。
     service_hours = safe_float(salary.get('daily_work_hr')) + safe_float(salary.get('holiday_work_hr'))
@@ -313,6 +324,8 @@ column_mapping = {
     'bank_account': '受款人帳號',
     'position': '職位名稱',
     'has_single_level_certificate': '有無單一級證照',
+    'is_part_time': '是否為兼職人員',
+    'needs_labor_insurance': '是否需要保勞保',
     'labor_insurance_grade' : '勞保級距(個人)',
     'health_insurance_grade': '健保級距(個人)',
     'subsidy_full': '全額補助人數',
@@ -514,12 +527,14 @@ def add_employee():
                 (`employee_id`, `employee_birth`, `employee_card`, `employee_name`,
                  `employee_onboard`, `bank_account`, `position`, `has_single_level_certificate`, `qualification`, `subsidy`,
                  `subsidy_none`, `subsidy_half`, `subsidy_full`, `insurance_grade_year`,
-                 `leave_payment_month_of_year`, `labor_insurance_grade`, `health_insurance_grade`)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 `leave_payment_month_of_year`, `labor_insurance_grade`, `health_insurance_grade`,
+                 `is_part_time`, `needs_labor_insurance`)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (employee_id, employee_birth, employee_card, employee_name,
                   employee_onboard, bank_account, position, has_single_level_certificate, qualification, subsidy,
                   subsidy_none, subsidy_half, subsidy_full, insurance_grade_year,
-                  leave_payment_month_of_year, labor_grade, health_grade))
+                  leave_payment_month_of_year, labor_grade, health_grade,
+                  employee_flag_from_form('is_part_time'), employee_flag_from_form('needs_labor_insurance')))
             mysql.connection.commit()
             flash("成功新增員工資料", "success")
             return redirect(url_for('employee_manage'))
@@ -618,6 +633,8 @@ def edit_profile(employee_id):
                 return redirect(url_for('employee_manage'))
 
             # 4. 開始修改資料 (包含主鍵修改的特殊處理)
+            is_part_time = employee_flag_from_form('is_part_time', original.get('is_part_time'))
+            needs_labor_insurance = employee_flag_from_form('needs_labor_insurance', original.get('needs_labor_insurance'))
             # 暫時關閉外鍵檢查，允許修改 Parent Table 的 ID
             cursor.execute("SET FOREIGN_KEY_CHECKS=0")
 
@@ -628,11 +645,13 @@ def edit_profile(employee_id):
                     `employee_onboard` = %s, `bank_account` = %s, `position` = %s, `has_single_level_certificate` = %s, `insurance_grade_year` = %s, `qualification` = %s, `subsidy` = %s,
                     `subsidy_none` = %s, `subsidy_half` = %s, `subsidy_full` = %s,
                     `leave_payment_month_of_year` = %s,
-                    `labor_insurance_grade` = %s, `health_insurance_grade` = %s
+                    `labor_insurance_grade` = %s, `health_insurance_grade` = %s,
+                    `is_part_time` = %s, `needs_labor_insurance` = %s
                 WHERE `employee_id` = %s
             """, (new_employee_id, employee_name, employee_birth, employee_card,
                   employee_onboard, bank_account, position, has_single_level_certificate, insurance_grade_year, qualification, subsidy, subsidy_none, subsidy_half, subsidy_full,
-                  leave_payment_month_of_year, labor_grade, health_grade, employee_id))
+                  leave_payment_month_of_year, labor_grade, health_grade,
+                  is_part_time, needs_labor_insurance, employee_id))
           
             if new_employee_id != employee_id:
                 # 更新其他關聯表
@@ -657,6 +676,8 @@ def edit_profile(employee_id):
                 'bank_account': bank_account,
                 'position': position,
                 'has_single_level_certificate': has_single_level_certificate,
+                'is_part_time': is_part_time,
+                'needs_labor_insurance': needs_labor_insurance,
                 'qualification': qualification,
                 'subsidy': subsidy,
                 'subsidy_none': subsidy_none,
@@ -2229,6 +2250,8 @@ def edit_log_profile(employee_id):
             chinese_key = column_mapping.get(key, key)
             if key == 'has_single_level_certificate':
                 value = {side: ('有' if str(item) == '1' else '無') for side, item in value.items()}
+            elif key in ('is_part_time', 'needs_labor_insurance'):
+                value = {side: {'0': '否', '1': '是'}.get(str(item), '未設定') for side, item in value.items()}
             translated_fields[chinese_key] = value
 
         log['changed_fields'] = translated_fields

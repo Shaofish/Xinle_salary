@@ -146,6 +146,22 @@
                 </div>
             </fieldset>
         </div>
+        {% for field, label in [('is_part_time', '是否為兼職人員'), ('needs_labor_insurance', '是否需要保勞保')] %}
+        <div class="row">
+            <fieldset class="certificate-field">
+                <legend class="form-label">{{ label }}</legend>
+                <div class="certificate-options">
+                    {% for value, choice in [('1', '是'), ('0', '否')] %}
+                    <div class="certificate-option">
+                        <input type="radio" class="form-check-input" name="{{ field }}" id="{{ field }}_{{ value }}"
+                               value="{{ value }}" {% if employee.get(field)|string == value %}checked{% endif %}>
+                        <label class="form-check-label" for="{{ field }}_{{ value }}">{{ choice }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </fieldset>
+        </div>
+        {% endfor %}
         <hr>
 
         <h4><i class="fa-solid fa-shield-halved"></i> 固定保險級距設定</h4>
